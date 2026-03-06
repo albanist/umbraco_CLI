@@ -45,13 +45,29 @@ Clone the repository and enter the project directory.
 export UMBRACO_BASE_URL="https://localhost:44391"
 export UMBRACO_CLIENT_ID="umbraco-back-office-api-user"
 export UMBRACO_CLIENT_SECRET="your-secret"
-# Optional local dev TLS bypass
-export NODE_TLS_REJECT_UNAUTHORIZED=0
 ```
 
 Notes:
 - The Go CLI reads environment variables from the shell.
 - `.env.example` is a template; it is not auto-loaded by the Go runtime.
+- `UMBRACO_BASE_URL` should be the site root, for example `https://localhost:44391`, not `https://localhost:44391/umbraco`.
+
+### Local HTTPS trust
+
+If your local Umbraco instance uses HTTPS with a development or self-signed
+certificate, the Go CLI must trust that certificate. For local ASP.NET/Umbraco
+setups, the usual fix is:
+
+```bash
+dotnet dev-certs https --trust
+```
+
+If you are not using `.NET` dev certificates, trust the certificate with your
+OS trust store or use a certificate issued by a trusted local CA. For example,
+`mkcert` is a common option for non-.NET local development setups.
+
+`NODE_TLS_REJECT_UNAUTHORIZED=0` does not affect this CLI because it is a Go
+binary, not a Node.js process.
 
 2. Build and test:
 
