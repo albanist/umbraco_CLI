@@ -256,3 +256,67 @@ func TestDictionaryImportIsIdempotentWithSkipExisting(t *testing.T) {
 		t.Fatalf("expected two create requests across both imports, got %d", postRequests)
 	}
 }
+
+func TestDictionaryImportMergesDuplicateKeysIntoSingleCreate(t *testing.T) {
+	file := writeDictionaryImportFixture(t, `[
+  {"key":"Pricing.AddonsSubtotal","translations":{"en-US":"Add-ons subtotal"}},
+  {"key":"Pricing.AddonsSubtotal","translations":{"de-DE":"Zusatzkosten Zwischensumme"}},
+  {"key":"Pricing.AddonsSubtotal","translations":{"es-ES":"Subtotal de complementos"}}
+]`)
+
+	var mu sync.Mutex
+	postRequests := 0
+	var createdPayload dictionaryCreateRequest
+
+	deps := dictionaryDeps(func(req *http.Request) (*http.Response, error) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return dictionaryJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/dictionary":
+			switch req.Method {
+			case http.MethodGet:
+				return dictionaryJSONResponse(http.StatusOK, `{"total":0,"items":[]}`), nil
+			case http.MethodPost:
+				postRequests++
+				if err := json.NewDecoder(req.Body).Decode(&createdPayload); err != nil {
+					t.Fatalf("failed to decode create payload: %v", err)
+				}
+				return dictionaryJSONResponse(http.StatusCreated, `{}`), nil
+			default:
+				return dictionaryJSONResponse(http.StatusMethodNotAllowed, `{"error":"method not allowed"}`), nil
+			}
+		default:
+			return dictionaryJSONResponse(http.StatusNotFound, `{"error":"unexpected request"}`), nil
+		}
+	})
+
+	output, err := execute(
+		buildRootWithCollections(t, deps),
+		"dictionary", "import",
+		"--file", file,
+	)
+	if err != nil {
+		t.Fatalf("dictionary import failed: %v", err)
+	}
+
+	var result dictionaryImportResult
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("failed to parse import result: %v", err)
+	}
+
+	if result.Created != 1 || result.Failed != 0 {
+		t.Fatalf("unexpected import summary: %+v", result)
+	}
+	if postRequests != 1 {
+		t.Fatalf("expected exactly one create request, got %d", postRequests)
+	}
+	if createdPayload.Name != "Pricing.AddonsSubtotal" {
+		t.Fatalf("unexpected create payload name: %+v", createdPayload)
+	}
+	if len(createdPayload.Translations) != 3 {
+		t.Fatalf("expected 3 translations in single create payload, got %+v", createdPayload.Translations)
+	}
+}

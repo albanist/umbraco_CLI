@@ -277,7 +277,9 @@ func loadDictionaryImportItems(path string) ([]dictionaryImportFileItem, error) 
 		return nil, fmt.Errorf("invalid dictionary import JSON: %w", err)
 	}
 
-	seenKeys := make(map[string]struct{}, len(items))
+	mergedByKey := make(map[string]dictionaryImportFileItem, len(items))
+	keyOrder := make([]string, 0, len(items))
+
 	for index, item := range items {
 		if strings.TrimSpace(item.Key) == "" {
 			return nil, fmt.Errorf("import item %d is missing a key", index)
@@ -288,14 +290,20 @@ func loadDictionaryImportItems(path string) ([]dictionaryImportFileItem, error) 
 		if err := validate.String(item.Key); err != nil {
 			return nil, err
 		}
-		if _, exists := seenKeys[item.Key]; exists {
-			return nil, fmt.Errorf("duplicate dictionary key in import file: %s", item.Key)
-		}
-		seenKeys[item.Key] = struct{}{}
 
 		if len(item.Translations) == 0 {
 			return nil, fmt.Errorf("import item %q must contain at least one translation", item.Key)
 		}
+
+		mergedItem, exists := mergedByKey[item.Key]
+		if !exists {
+			mergedItem = dictionaryImportFileItem{
+				Key:          item.Key,
+				Translations: make(map[string]string, len(item.Translations)),
+			}
+			keyOrder = append(keyOrder, item.Key)
+		}
+
 		for isoCode, translation := range item.Translations {
 			if strings.TrimSpace(isoCode) == "" {
 				return nil, fmt.Errorf("import item %q contains an empty isoCode", item.Key)
@@ -306,10 +314,22 @@ func loadDictionaryImportItems(path string) ([]dictionaryImportFileItem, error) 
 			if err := validate.String(translation); err != nil {
 				return nil, err
 			}
+
+			if existingTranslation, alreadySet := mergedItem.Translations[isoCode]; alreadySet && existingTranslation != translation {
+				return nil, fmt.Errorf("conflicting translations for key %q and isoCode %q", item.Key, isoCode)
+			}
+			mergedItem.Translations[isoCode] = translation
 		}
+
+		mergedByKey[item.Key] = mergedItem
 	}
 
-	return items, nil
+	mergedItems := make([]dictionaryImportFileItem, 0, len(keyOrder))
+	for _, key := range keyOrder {
+		mergedItems = append(mergedItems, mergedByKey[key])
+	}
+
+	return mergedItems, nil
 }
 
 func mergeDictionaryTranslations(existing []dictionaryTranslation, incoming map[string]string) ([]dictionaryTranslation, bool) {
