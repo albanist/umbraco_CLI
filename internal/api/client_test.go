@@ -4,14 +4,38 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"umbraco-cli/internal/auth"
 	"umbraco-cli/internal/config"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
+
+func newTestHTTPClient(handler roundTripFunc) *http.Client {
+	return &http.Client{Transport: handler}
+}
+
+func jsonResponse(status int, body string, headers map[string]string) *http.Response {
+	header := make(http.Header)
+	header.Set("Content-Type", "application/json")
+	for key, value := range headers {
+		header.Set(key, value)
+	}
+
+	return &http.Response{
+		StatusCode: status,
+		Header:     header,
+		Body:       io.NopCloser(strings.NewReader(body)),
+	}
+}
 
 func TestDryRunReturnsPreview(t *testing.T) {
 	cfg := config.Config{BaseURL: "https://example.test"}
@@ -39,24 +63,20 @@ func TestRequestBuildsURLAndUsesToken(t *testing.T) {
 	var observedRequestPath string
 	var observedAuth string
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient := newTestHTTPClient(func(r *http.Request) (*http.Response, error) {
 		switch r.URL.Path {
 		case "/umbraco/management/api/v1/security/back-office/token":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"access_token":"token-123","expires_in":3600}`))
+			return jsonResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`, nil), nil
 		case "/umbraco/management/api/v1/document/root":
 			observedRequestPath = r.URL.String()
 			observedAuth = r.Header.Get("Authorization")
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"items":[{"id":"root"}]}`))
+			return jsonResponse(http.StatusOK, `{"items":[{"id":"root"}]}`, nil), nil
 		default:
-			http.NotFound(w, r)
+			return jsonResponse(http.StatusNotFound, `{"error":"not found"}`, nil), nil
 		}
-	}))
-	defer server.Close()
+	})
 
-	cfg := config.Config{BaseURL: server.URL, ClientID: "client-id", ClientSecret: "client-secret"}
-	httpClient := server.Client()
+	cfg := config.Config{BaseURL: "https://example.test", ClientID: "client-id", ClientSecret: "client-secret"}
 	tokenProvider := auth.New(cfg, httpClient)
 	client := NewClient(cfg, httpClient, tokenProvider)
 
@@ -82,23 +102,18 @@ func TestRequestBuildsURLAndUsesToken(t *testing.T) {
 }
 
 func TestRequestReturnsAPIErrorBody(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient := newTestHTTPClient(func(r *http.Request) (*http.Response, error) {
 		switch r.URL.Path {
 		case "/umbraco/management/api/v1/security/back-office/token":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"access_token":"token-123","expires_in":3600}`))
+			return jsonResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`, nil), nil
 		case "/umbraco/management/api/v1/document/root":
-			w.WriteHeader(http.StatusBadRequest)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"error":"invalid request"}`))
+			return jsonResponse(http.StatusBadRequest, `{"error":"invalid request"}`, nil), nil
 		default:
-			http.NotFound(w, r)
+			return jsonResponse(http.StatusNotFound, `{"error":"not found"}`, nil), nil
 		}
-	}))
-	defer server.Close()
+	})
 
-	cfg := config.Config{BaseURL: server.URL, ClientID: "client-id", ClientSecret: "client-secret"}
-	httpClient := server.Client()
+	cfg := config.Config{BaseURL: "https://example.test", ClientID: "client-id", ClientSecret: "client-secret"}
 	client := NewClient(cfg, httpClient, auth.New(cfg, httpClient))
 
 	_, err := client.Get(context.Background(), "/document/root", RequestOptions{})
@@ -130,4 +145,79 @@ func TestDryRunBodySerializesConsistently(t *testing.T) {
 		t.Fatalf("expected body culture in JSON: %s", string(encoded))
 	}
 	_ = fmt.Sprintf("%s", encoded)
+}
+
+func TestRequestRetriesOn429(t *testing.T) {
+	requests := 0
+
+	httpClient := newTestHTTPClient(func(r *http.Request) (*http.Response, error) {
+		switch r.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return jsonResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`, nil), nil
+		case "/umbraco/management/api/v1/document/root":
+			requests++
+			if requests == 1 {
+				return jsonResponse(http.StatusTooManyRequests, `{"error":"slow down"}`, map[string]string{"Retry-After": "0"}), nil
+			}
+			return jsonResponse(http.StatusOK, `{"items":[{"id":"root"}]}`, nil), nil
+		default:
+			return jsonResponse(http.StatusNotFound, `{"error":"not found"}`, nil), nil
+		}
+	})
+
+	cfg := config.Config{BaseURL: "https://example.test", ClientID: "client-id", ClientSecret: "client-secret"}
+	client := NewClient(cfg, httpClient, auth.New(cfg, httpClient))
+
+	result, err := client.Get(context.Background(), "/document/root", RequestOptions{})
+	if err != nil {
+		t.Fatalf("request should succeed after retry: %v", err)
+	}
+	if requests != 2 {
+		t.Fatalf("expected 2 document requests, got %d", requests)
+	}
+
+	payload, ok := result.(map[string]any)
+	if !ok || payload["items"] == nil {
+		t.Fatalf("expected retried response payload, got %+v", result)
+	}
+}
+
+func TestRequestRefreshesTokenAfter401(t *testing.T) {
+	tokenRequests := 0
+	documentRequests := 0
+	var observedAuth string
+
+	httpClient := newTestHTTPClient(func(r *http.Request) (*http.Response, error) {
+		switch r.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			tokenRequests++
+			return jsonResponse(http.StatusOK, fmt.Sprintf(`{"access_token":"token-%d","expires_in":3600}`, tokenRequests), nil), nil
+		case "/umbraco/management/api/v1/document/root":
+			documentRequests++
+			observedAuth = r.Header.Get("Authorization")
+			if documentRequests == 1 {
+				return jsonResponse(http.StatusUnauthorized, `{"error":"expired token"}`, nil), nil
+			}
+			return jsonResponse(http.StatusOK, `{"items":[{"id":"root"}]}`, nil), nil
+		default:
+			return jsonResponse(http.StatusNotFound, `{"error":"not found"}`, nil), nil
+		}
+	})
+
+	cfg := config.Config{BaseURL: "https://example.test", ClientID: "client-id", ClientSecret: "client-secret"}
+	client := NewClient(cfg, httpClient, auth.New(cfg, httpClient))
+
+	_, err := client.Get(context.Background(), "/document/root", RequestOptions{})
+	if err != nil {
+		t.Fatalf("request should succeed after token refresh: %v", err)
+	}
+	if tokenRequests != 2 {
+		t.Fatalf("expected 2 token requests, got %d", tokenRequests)
+	}
+	if documentRequests != 2 {
+		t.Fatalf("expected 2 document requests, got %d", documentRequests)
+	}
+	if observedAuth != "Bearer token-2" {
+		t.Fatalf("expected refreshed token on second request, got %s", observedAuth)
+	}
 }

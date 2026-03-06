@@ -8,7 +8,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"umbraco-cli/internal/auth"
 	"umbraco-cli/internal/config"
@@ -33,6 +35,16 @@ type Client struct {
 	cfg           config.Config
 	httpClient    *http.Client
 	tokenProvider *auth.Provider
+}
+
+type APIError struct {
+	StatusCode int
+	Payload    any
+}
+
+func (e *APIError) Error() string {
+	encoded, _ := json.Marshal(e.Payload)
+	return fmt.Sprintf("API %d: %s", e.StatusCode, encoded)
 }
 
 func NewClient(cfg config.Config, httpClient *http.Client, tokenProvider *auth.Provider) *Client {
@@ -129,43 +141,72 @@ func (c *Client) Request(ctx context.Context, method string, path string, body a
 		}, nil
 	}
 
-	token, err := c.tokenProvider.AccessToken(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var reqBody io.Reader
+	var encodedBody []byte
 	if body != nil {
 		encoded, err := json.Marshal(body)
 		if err != nil {
 			return nil, err
 		}
-		reqBody = bytes.NewReader(encoded)
+		encodedBody = encoded
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, fullURL, reqBody)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
+	token, err := c.tokenProvider.AccessToken(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := parseResponse(resp)
-	if err != nil {
-		return nil, err
+	for attempt := 0; attempt < 4; attempt++ {
+		var reqBody io.Reader
+		if encodedBody != nil {
+			reqBody = bytes.NewReader(encodedBody)
+		}
+
+		req, err := http.NewRequestWithContext(ctx, method, fullURL, reqBody)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode == http.StatusTooManyRequests && attempt < 3 {
+			retryDelay := retryAfterDelay(resp.Header.Get("Retry-After"), attempt)
+			_, _ = io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			if err := waitForRetry(ctx, retryDelay); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		if resp.StatusCode == http.StatusUnauthorized && attempt < 3 && c.tokenProvider != nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			c.tokenProvider.Invalidate()
+			token, err = c.tokenProvider.AccessToken(ctx)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		result, err := parseResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, &APIError{StatusCode: resp.StatusCode, Payload: result}
+		}
+
+		return result, nil
 	}
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		encoded, _ := json.Marshal(result)
-		return nil, fmt.Errorf("API %d: %s", resp.StatusCode, encoded)
-	}
-
-	return result, nil
+	return nil, fmt.Errorf("request retry budget exhausted")
 }
 
 func (c *Client) Get(ctx context.Context, path string, opts RequestOptions) (any, error) {
@@ -182,4 +223,38 @@ func (c *Client) Put(ctx context.Context, path string, body any, opts RequestOpt
 
 func (c *Client) Delete(ctx context.Context, path string, opts RequestOptions) (any, error) {
 	return c.Request(ctx, http.MethodDelete, path, nil, opts)
+}
+
+func retryAfterDelay(header string, attempt int) time.Duration {
+	if seconds, err := strconv.Atoi(strings.TrimSpace(header)); err == nil && seconds >= 0 {
+		return time.Duration(seconds) * time.Second
+	}
+	if retryAt, err := http.ParseTime(header); err == nil {
+		delay := time.Until(retryAt)
+		if delay > 0 {
+			return delay
+		}
+	}
+
+	delay := 200 * time.Millisecond
+	for i := 0; i < attempt; i++ {
+		delay *= 2
+	}
+	return delay
+}
+
+func waitForRetry(ctx context.Context, delay time.Duration) error {
+	if delay <= 0 {
+		return nil
+	}
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

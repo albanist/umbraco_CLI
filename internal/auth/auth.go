@@ -32,6 +32,13 @@ func New(cfg config.Config, client *http.Client) *Provider {
 	return &Provider{cfg: cfg, httpClient: client}
 }
 
+func (p *Provider) Invalidate() {
+	p.mu.Lock()
+	p.cached = ""
+	p.expiresAt = time.Time{}
+	p.mu.Unlock()
+}
+
 func (p *Provider) AccessToken(ctx context.Context) (string, error) {
 	p.mu.Lock()
 	if p.cached != "" && time.Now().Before(p.expiresAt) {
