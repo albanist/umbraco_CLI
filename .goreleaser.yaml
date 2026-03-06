@@ -51,7 +51,7 @@ changelog:
   sort: asc
 
 homebrew_casks:
-  - name: albanist-umbraco-cli
+  - name: umbraco-cli
     ids:
       - umbraco-archives
     binaries:
@@ -77,7 +77,7 @@ homebrew_casks:
           end
     repository:
       owner: albanist
-      name: umbraco_CLI
+      name: homebrew-tap
       branch: main
     commit_author:
       name: github-actions[bot]

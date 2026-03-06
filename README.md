@@ -19,17 +19,19 @@ Core behavior:
 
 ### macOS via Homebrew
 
-After the first tagged GitHub release is published, macOS users can install the
-CLI with Homebrew:
+After the Homebrew tap is in place and a tagged GitHub release is published,
+macOS users can install the CLI with a single command:
 
 ```bash
-brew tap albanist/umbraco_CLI https://github.com/albanist/umbraco_CLI
-brew install --cask albanist-umbraco-cli
+brew install --cask albanist/tap/umbraco-cli
 umbraco --help
 ```
 
-The explicit GitHub URL is required because this repository is not named with
-Homebrew's preferred `homebrew-*` prefix.
+Important:
+- The Homebrew tap repository must be named `albanist/homebrew-tap`.
+- GitHub release assets are downloaded anonymously by Homebrew. The source
+  release repository must therefore be public, or the cask must be configured
+  with authenticated download headers.
 
 ### Build from source
 
@@ -74,7 +76,7 @@ go build -o ./bin/umbraco ./cmd/umbraco
 ## Release
 
 Tagging a release publishes GitHub release archives and updates the Homebrew
-cask in this repository's `Casks/` directory:
+cask in the dedicated tap repository `albanist/homebrew-tap`:
 
 ```bash
 git tag v0.1.0
