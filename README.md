@@ -95,6 +95,7 @@ npm run verify:skills
 ## Collections in MVP
 
 - `document` (15)
+- `dictionary` (6)
 - `media` (10)
 - `doctype` (10)
 - `datatype` (8)
@@ -103,7 +104,7 @@ npm run verify:skills
 - `server` (5)
 - `health` (4)
 
-Total: **63 commands**
+Total: **69 commands**
 
 ## Agent Safety Rules
 

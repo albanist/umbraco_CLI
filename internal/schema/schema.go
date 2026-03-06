@@ -58,6 +58,20 @@ var rawSchemas = map[string]rawSchema{
 	"document.trash":             {Method: "POST", Path: "/document/{id}/move-to-recycle-bin", PathParams: map[string]ParamSchema{"id": idParam}},
 	"document.restore":           {Method: "POST", Path: "/document/{id}/restore", PathParams: map[string]ParamSchema{"id": idParam}},
 
+	// dictionary (12)
+	"dictionary.list":      {Method: "GET", Path: "/dictionary", QueryParams: map[string]ParamSchema{"filter": {Type: "string"}, "skip": {Type: "number"}, "take": {Type: "number"}}},
+	"dictionary.get":       {Method: "GET", Path: "/dictionary/{id}", PathParams: map[string]ParamSchema{"id": idParam}},
+	"dictionary.get-many":  {Method: "GET", Path: "/item/dictionary", QueryParams: map[string]ParamSchema{"id": {Type: "array", Format: "uuid", Description: "Repeat the id query parameter for each item"}}},
+	"dictionary.create":    {Method: "POST", Path: "/dictionary", RequestBody: genericRequestBody},
+	"dictionary.update":    {Method: "PUT", Path: "/dictionary/{id}", PathParams: map[string]ParamSchema{"id": idParam}, RequestBody: genericRequestBody},
+	"dictionary.delete":    {Method: "DELETE", Path: "/dictionary/{id}", PathParams: map[string]ParamSchema{"id": idParam}},
+	"dictionary.import":    {Method: "POST", Path: "/dictionary/import", RequestBody: genericRequestBody},
+	"dictionary.export":    {Method: "GET", Path: "/dictionary/{id}/export", PathParams: map[string]ParamSchema{"id": idParam}, QueryParams: map[string]ParamSchema{"includeChildren": {Type: "boolean"}}},
+	"dictionary.move":      {Method: "PUT", Path: "/dictionary/{id}/move", PathParams: map[string]ParamSchema{"id": idParam}, RequestBody: genericRequestBody},
+	"dictionary.root":      {Method: "GET", Path: "/tree/dictionary/root", QueryParams: map[string]ParamSchema{"skip": {Type: "number"}, "take": {Type: "number"}}},
+	"dictionary.children":  {Method: "GET", Path: "/tree/dictionary/children", QueryParams: map[string]ParamSchema{"parentId": {Type: "string", Format: "uuid", Required: true}, "skip": {Type: "number"}, "take": {Type: "number"}}},
+	"dictionary.ancestors": {Method: "GET", Path: "/tree/dictionary/ancestors", QueryParams: map[string]ParamSchema{"descendantId": {Type: "string", Format: "uuid", Required: true}}},
+
 	// media (10)
 	"media.get":           {Method: "GET", Path: "/media/{id}", PathParams: map[string]ParamSchema{"id": idParam}, QueryParams: map[string]ParamSchema{"fields": fieldsQuery}},
 	"media.root":          {Method: "GET", Path: "/media/root", QueryParams: map[string]ParamSchema{"fields": fieldsQuery}},

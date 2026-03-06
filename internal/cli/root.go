@@ -32,6 +32,7 @@ func NewRootCommand() *cobra.Command {
 	}
 
 	commands.RegisterDocument(root, deps)
+	commands.RegisterDictionary(root, deps)
 	commands.RegisterMedia(root, deps)
 	commands.RegisterDoctype(root, deps)
 	commands.RegisterDatatype(root, deps)

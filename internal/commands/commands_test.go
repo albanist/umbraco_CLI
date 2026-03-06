@@ -25,6 +25,7 @@ func buildRootWithCollections(t *testing.T, deps Dependencies) *cobra.Command {
 	root := &cobra.Command{Use: "umbraco", SilenceErrors: true, SilenceUsage: true}
 	root.SetErr(io.Discard)
 	RegisterDocument(root, deps)
+	RegisterDictionary(root, deps)
 	RegisterMedia(root, deps)
 	RegisterDoctype(root, deps)
 	RegisterDatatype(root, deps)
@@ -67,8 +68,8 @@ func TestCommandCountsMatchMVP(t *testing.T) {
 		total += len(found.Commands())
 	}
 
-	if total != 63 {
-		t.Fatalf("expected 63 collection commands, got %d", total)
+	if total != 69 {
+		t.Fatalf("expected 69 collection commands, got %d", total)
 	}
 }
 

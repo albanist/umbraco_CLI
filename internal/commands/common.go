@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -27,6 +28,24 @@ func (d Dependencies) requestedOutput() string {
 
 func printResult(cmd *cobra.Command, deps Dependencies, data any) error {
 	return output.Print(data, deps.requestedOutput(), deps.EnvOutput, cmd.OutOrStdout())
+}
+
+func resolveOutputFormat(deps Dependencies) (config.OutputFormat, error) {
+	if requested := strings.TrimSpace(deps.requestedOutput()); requested != "" {
+		return config.ParseOutputFormat(requested)
+	}
+	if deps.EnvOutput != "" {
+		return deps.EnvOutput, nil
+	}
+
+	info, err := os.Stdout.Stat()
+	if err != nil {
+		return config.OutputJSON, nil
+	}
+	if (info.Mode() & os.ModeCharDevice) == 0 {
+		return config.OutputJSON, nil
+	}
+	return config.OutputPlain, nil
 }
 
 func parseJSONObject(raw string, label string) (map[string]any, error) {
@@ -64,4 +83,16 @@ func optionalBody(raw string) (map[string]any, error) {
 		return map[string]any{}, nil
 	}
 	return parsePayload(raw)
+}
+
+func decodeResult[T any](raw any) (T, error) {
+	var result T
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return result, err
+	}
+	if err := json.Unmarshal(encoded, &result); err != nil {
+		return result, err
+	}
+	return result, nil
 }
