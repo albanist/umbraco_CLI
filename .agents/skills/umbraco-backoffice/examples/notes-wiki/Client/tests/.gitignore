@@ -1,6 +1,0 @@
-# Auth state (contains session tokens)
-.auth/
-
-# Playwright artifacts
-playwright-report/
-test-results/

@@ -1,7 +1,0 @@
-# Dependencies
-node_modules/
-
-# Playwright
-playwright/.auth/
-playwright-report/
-test-results/
