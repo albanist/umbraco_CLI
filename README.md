@@ -15,10 +15,29 @@ Core behavior:
 - Node.js `20+` (only needed for skills verification scripts)
 - Access to an Umbraco instance with Management API credentials
 
+## Install
+
+### macOS via Homebrew
+
+After the first tagged GitHub release is published, macOS users can install the
+CLI with Homebrew:
+
+```bash
+brew tap albanist/umbraco_CLI https://github.com/albanist/umbraco_CLI
+brew install --cask albanist-umbraco-cli
+umbraco --help
+```
+
+The explicit GitHub URL is required because this repository is not named with
+Homebrew's preferred `homebrew-*` prefix.
+
+### Build from source
+
+Clone the repository and enter the project directory.
+
 ## Setup
 
-1. Clone the repository and enter the project directory.
-2. Configure environment variables (use `.env.example` as reference):
+1. Configure environment variables (use `.env.example` as reference):
 
 ```bash
 export UMBRACO_BASE_URL="https://localhost:44391"
@@ -32,14 +51,14 @@ Notes:
 - The Go CLI reads environment variables from the shell.
 - `.env.example` is a template; it is not auto-loaded by the Go runtime.
 
-3. Build and test:
+2. Build and test:
 
 ```bash
 go test ./...
 go build ./...
 ```
 
-4. Run directly:
+3. Run directly:
 
 ```bash
 go run ./cmd/umbraco --help
@@ -51,6 +70,18 @@ Optional binary build:
 go build -o ./bin/umbraco ./cmd/umbraco
 ./bin/umbraco --help
 ```
+
+## Release
+
+Tagging a release publishes GitHub release archives and updates the Homebrew
+cask in this repository's `Casks/` directory:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The release workflow uses GoReleaser and expects to run in GitHub Actions.
 
 ## First Commands
 

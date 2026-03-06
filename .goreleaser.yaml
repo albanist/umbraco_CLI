@@ -1,0 +1,84 @@
+version: 2
+
+project_name: umbraco-cli
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - id: umbraco
+    main: ./cmd/umbraco
+    binary: umbraco
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: umbraco-archives
+    ids:
+      - umbraco
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macOS
+      {{- else if eq .Os "linux" }}Linux
+      {{- else if eq .Os "windows" }}Windows
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "arm64" }}arm64
+      {{- else }}{{ .Arch }}{{ end }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  draft: false
+  prerelease: auto
+
+changelog:
+  sort: asc
+
+homebrew_casks:
+  - name: albanist-umbraco-cli
+    ids:
+      - umbraco-archives
+    binaries:
+      - umbraco
+    commit_msg_template: "chore: update Homebrew cask for {{ .Tag }}"
+    directory: Casks
+    homepage: "https://github.com/albanist/umbraco_CLI"
+    description: "Command-line client for the Umbraco Management API"
+    skip_upload: auto
+    caveats: |-
+      The `umbraco` binary expects these environment variables:
+        UMBRACO_BASE_URL
+        UMBRACO_CLIENT_ID
+        UMBRACO_CLIENT_SECRET
+
+      The release archives are not notarized yet, so the cask clears the macOS
+      quarantine attribute during installation.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/umbraco"]
+          end
+    repository:
+      owner: albanist
+      name: umbraco_CLI
+      branch: main
+    commit_author:
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
