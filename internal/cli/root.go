@@ -1,0 +1,45 @@
+package cli
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"umbraco-cli/internal/commands"
+)
+
+func NewRootCommand() *cobra.Command {
+	runtime, err := NewRuntime()
+	if err != nil {
+		panic(fmt.Errorf("failed to initialize runtime: %w", err))
+	}
+
+	var outputFormat string
+
+	root := &cobra.Command{
+		Use:           "umbraco",
+		Short:         "Umbraco CLI - Agent-first wrapper around the Umbraco Management API",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+
+	root.PersistentFlags().StringVarP(&outputFormat, "output", "o", "", "Output format: json, table, plain")
+
+	deps := commands.Dependencies{
+		Client:     runtime.Client,
+		EnvOutput:  runtime.Config.OutputFormat,
+		OutputFlag: &outputFormat,
+	}
+
+	commands.RegisterDocument(root, deps)
+	commands.RegisterMedia(root, deps)
+	commands.RegisterDoctype(root, deps)
+	commands.RegisterDatatype(root, deps)
+	commands.RegisterTemplate(root, deps)
+	commands.RegisterLogs(root, deps)
+	commands.RegisterServer(root, deps)
+	commands.RegisterHealth(root, deps)
+	commands.RegisterSchema(root, deps)
+
+	return root
+}
