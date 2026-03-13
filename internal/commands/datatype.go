@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
+	"umbraco-cli/internal/validate"
 )
 
 const (
@@ -35,6 +36,7 @@ func RegisterDatatype(root *cobra.Command, deps Dependencies) {
 	datatype.AddCommand(datatypeCreate(deps))
 	datatype.AddCommand(datatypeUpdate(deps))
 	datatype.AddCommand(datatypeExtensions(deps))
+	datatype.AddCommand(datatypeAddValue(deps))
 	datatype.AddCommand(datatypeDelete(deps))
 	root.AddCommand(datatype)
 }
@@ -279,6 +281,44 @@ func datatypeDelete(deps Dependencies) *cobra.Command {
 		}
 		return printResult(cmd, deps, result)
 	}}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate request without executing")
+	return cmd
+}
+
+func datatypeAddValue(deps Dependencies) *cobra.Command {
+	var alias string
+	var value string
+	var dryRun bool
+
+	cmd := &cobra.Command{Use: "add-value <id>", Short: "Append a string value to a datatype array setting", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireValue("--alias", alias); err != nil {
+			return err
+		}
+		if err := requireValue("--value", value); err != nil {
+			return err
+		}
+		if err := validate.String(alias); err != nil {
+			return err
+		}
+		if err := validate.String(value); err != nil {
+			return err
+		}
+
+		payload, err := fetchDatatypeObject(context.Background(), deps.Client, args[0])
+		if err != nil {
+			return err
+		}
+
+		updated := datatypeAddStringArrayValue(payload, alias, value)
+		result, err := deps.Client.Put(context.Background(), fmt.Sprintf("%s/%s", dataTypeLegacyCollectionPath, args[0]), updated, api.RequestOptions{DryRun: dryRun})
+		if err != nil {
+			return err
+		}
+		return printResult(cmd, deps, result)
+	}}
+
+	cmd.Flags().StringVar(&alias, "alias", "", "Datatype array alias to update")
+	cmd.Flags().StringVar(&value, "value", "", "String value to append")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate request without executing")
 	return cmd
 }
