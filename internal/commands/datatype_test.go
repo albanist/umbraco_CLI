@@ -252,7 +252,7 @@ func TestDatatypeAddValueAppendsAliasArrayValueWithoutDroppingRequiredFields(t *
 }
 
 func TestDatatypeAddValueAvoidsDuplicateEntries(t *testing.T) {
-	var observedPutBody map[string]any
+	var putRequests int
 
 	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
@@ -268,9 +268,7 @@ func TestDatatypeAddValueAvoidsDuplicateEntries(t *testing.T) {
 }`), nil
 			}
 			if req.Method == http.MethodPut {
-				if err := json.NewDecoder(req.Body).Decode(&observedPutBody); err != nil {
-					t.Fatalf("failed to decode datatype add-value payload: %v", err)
-				}
+				putRequests++
 				return datatypeJSONResponse(http.StatusOK, `{"ok":true}`), nil
 			}
 			return datatypeJSONResponse(http.StatusMethodNotAllowed, `{"error":"method not allowed"}`), nil
@@ -279,7 +277,7 @@ func TestDatatypeAddValueAvoidsDuplicateEntries(t *testing.T) {
 		}
 	})
 
-	_, err := execute(
+	output, err := execute(
 		buildRootWithCollections(t, deps),
 		"datatype", "add-value", "dt-1",
 		"--alias", "extensions",
@@ -289,11 +287,16 @@ func TestDatatypeAddValueAvoidsDuplicateEntries(t *testing.T) {
 		t.Fatalf("datatype add-value duplicate case failed: %v", err)
 	}
 
-	values := observedPutBody["values"].([]any)
-	valueEntry := values[0].(map[string]any)
-	extensions := valueEntry["value"].([]any)
-	if len(extensions) != 1 {
-		t.Fatalf("expected duplicate add-value to keep a single entry, got %+v", extensions)
+	if putRequests != 0 {
+		t.Fatalf("expected duplicate add-value to short-circuit without PUT, got %d writes", putRequests)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("failed to decode duplicate add-value payload: %v", err)
+	}
+	if payload["changed"] != false || payload["message"] != "value already present" {
+		t.Fatalf("unexpected duplicate add-value payload: %+v", payload)
 	}
 }
 
@@ -342,6 +345,252 @@ func TestDatatypeAddValueSupportsDryRun(t *testing.T) {
 	extensions := valueEntry["value"].([]any)
 	if len(extensions) != 2 || extensions[1] != "New.Extension" {
 		t.Fatalf("expected dry-run body to include appended value, got %+v", extensions)
+	}
+}
+
+func TestDatatypeRemoveValueRemovesAliasArrayValueWithoutDroppingRequiredFields(t *testing.T) {
+	var observedPutBody map[string]any
+
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/data-type/dt-1":
+			if req.Method == http.MethodGet {
+				return datatypeJSONResponse(http.StatusOK, `{
+  "id":"dt-1",
+  "name":"Rich Text",
+  "editorAlias":"Umb.PropertyEditorUi.Tiptap",
+  "values":[{"alias":"extensions","value":["Existing.Extension","Remove.Me"]}]
+}`), nil
+			}
+			if req.Method == http.MethodPut {
+				if err := json.NewDecoder(req.Body).Decode(&observedPutBody); err != nil {
+					t.Fatalf("failed to decode datatype remove-value payload: %v", err)
+				}
+				return datatypeJSONResponse(http.StatusOK, `{"ok":true}`), nil
+			}
+			return datatypeJSONResponse(http.StatusMethodNotAllowed, `{"error":"method not allowed"}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	output, err := execute(
+		buildRootWithCollections(t, deps),
+		"datatype", "remove-value", "dt-1",
+		"--alias", "extensions",
+		"--value", "Remove.Me",
+	)
+	if err != nil {
+		t.Fatalf("datatype remove-value failed: %v", err)
+	}
+
+	if observedPutBody["name"] != "Rich Text" || observedPutBody["editorAlias"] != "Umb.PropertyEditorUi.Tiptap" {
+		t.Fatalf("expected required fields to be preserved, got %+v", observedPutBody)
+	}
+
+	values, ok := observedPutBody["values"].([]any)
+	if !ok || len(values) != 1 {
+		t.Fatalf("expected one alias entry in values payload, got %+v", observedPutBody["values"])
+	}
+	valueEntry := values[0].(map[string]any)
+	extensions := valueEntry["value"].([]any)
+	if len(extensions) != 1 || extensions[0] != "Existing.Extension" {
+		t.Fatalf("expected targeted extension alias to be removed, got %+v", extensions)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("failed to decode datatype remove-value result: %v", err)
+	}
+	if payload["ok"] != true {
+		t.Fatalf("unexpected datatype remove-value result: %+v", payload)
+	}
+}
+
+func TestDatatypeRemoveValueLeavesPayloadUnchangedWhenValueIsMissing(t *testing.T) {
+	var putRequests int
+
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/data-type/dt-1":
+			if req.Method == http.MethodGet {
+				return datatypeJSONResponse(http.StatusOK, `{
+  "id":"dt-1",
+  "name":"Rich Text",
+  "editorAlias":"Umb.PropertyEditorUi.Tiptap",
+  "values":[{"alias":"extensions","value":["Existing.Extension"]}]
+}`), nil
+			}
+			if req.Method == http.MethodPut {
+				putRequests++
+				return datatypeJSONResponse(http.StatusOK, `{"ok":true}`), nil
+			}
+			return datatypeJSONResponse(http.StatusMethodNotAllowed, `{"error":"method not allowed"}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	output, err := execute(
+		buildRootWithCollections(t, deps),
+		"datatype", "remove-value", "dt-1",
+		"--alias", "extensions",
+		"--value", "Missing.Extension",
+	)
+	if err != nil {
+		t.Fatalf("datatype remove-value missing case failed: %v", err)
+	}
+
+	if putRequests != 0 {
+		t.Fatalf("expected missing remove-value to short-circuit without PUT, got %d writes", putRequests)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("failed to decode missing remove-value payload: %v", err)
+	}
+	if payload["changed"] != false || payload["message"] != "value not present" {
+		t.Fatalf("unexpected missing remove-value payload: %+v", payload)
+	}
+}
+
+func TestDatatypeAddExtensionUsesExtensionsAlias(t *testing.T) {
+	var observedPutBody map[string]any
+
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/data-type/dt-1":
+			if req.Method == http.MethodGet {
+				return datatypeJSONResponse(http.StatusOK, `{
+  "id":"dt-1",
+  "name":"Rich Text",
+  "editorAlias":"Umb.PropertyEditorUi.Tiptap",
+  "values":[{"alias":"extensions","value":["Existing.Extension"]}]
+}`), nil
+			}
+			if req.Method == http.MethodPut {
+				if err := json.NewDecoder(req.Body).Decode(&observedPutBody); err != nil {
+					t.Fatalf("failed to decode datatype add-extension payload: %v", err)
+				}
+				return datatypeJSONResponse(http.StatusOK, `{"ok":true}`), nil
+			}
+			return datatypeJSONResponse(http.StatusMethodNotAllowed, `{"error":"method not allowed"}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	_, err := execute(
+		buildRootWithCollections(t, deps),
+		"datatype", "add-extension", "dt-1", "New.Extension",
+	)
+	if err != nil {
+		t.Fatalf("datatype add-extension failed: %v", err)
+	}
+
+	values := observedPutBody["values"].([]any)
+	valueEntry := values[0].(map[string]any)
+	extensions := valueEntry["value"].([]any)
+	if len(extensions) != 2 || extensions[1] != "New.Extension" {
+		t.Fatalf("expected add-extension to append using the extensions alias, got %+v", extensions)
+	}
+}
+
+func TestDatatypeRemoveExtensionUsesExtensionsAlias(t *testing.T) {
+	var observedPutBody map[string]any
+
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/data-type/dt-1":
+			if req.Method == http.MethodGet {
+				return datatypeJSONResponse(http.StatusOK, `{
+  "id":"dt-1",
+  "name":"Rich Text",
+  "editorAlias":"Umb.PropertyEditorUi.Tiptap",
+  "values":[{"alias":"extensions","value":["Keep.Extension","Remove.Me"]}]
+}`), nil
+			}
+			if req.Method == http.MethodPut {
+				if err := json.NewDecoder(req.Body).Decode(&observedPutBody); err != nil {
+					t.Fatalf("failed to decode datatype remove-extension payload: %v", err)
+				}
+				return datatypeJSONResponse(http.StatusOK, `{"ok":true}`), nil
+			}
+			return datatypeJSONResponse(http.StatusMethodNotAllowed, `{"error":"method not allowed"}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	_, err := execute(
+		buildRootWithCollections(t, deps),
+		"datatype", "remove-extension", "dt-1", "Remove.Me",
+	)
+	if err != nil {
+		t.Fatalf("datatype remove-extension failed: %v", err)
+	}
+
+	values := observedPutBody["values"].([]any)
+	valueEntry := values[0].(map[string]any)
+	extensions := valueEntry["value"].([]any)
+	if len(extensions) != 1 || extensions[0] != "Keep.Extension" {
+		t.Fatalf("expected remove-extension to target the extensions alias, got %+v", extensions)
+	}
+}
+
+func TestDatatypeRemoveValueSupportsDryRun(t *testing.T) {
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/data-type/dt-1":
+			if req.Method == http.MethodGet {
+				return datatypeJSONResponse(http.StatusOK, `{
+  "id":"dt-1",
+  "name":"Rich Text",
+  "editorAlias":"Umb.PropertyEditorUi.Tiptap",
+  "values":[{"alias":"extensions","value":["Existing.Extension","Remove.Me"]}]
+}`), nil
+			}
+			return datatypeJSONResponse(http.StatusMethodNotAllowed, `{"error":"unexpected write"}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	output, err := execute(
+		buildRootWithCollections(t, deps),
+		"datatype", "remove-value", "dt-1",
+		"--alias", "extensions",
+		"--value", "Remove.Me",
+		"--dry-run",
+	)
+	if err != nil {
+		t.Fatalf("datatype remove-value dry-run failed: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("failed to decode datatype remove-value dry-run payload: %v", err)
+	}
+	if payload["dryRun"] != true {
+		t.Fatalf("expected dryRun=true, got %+v", payload)
+	}
+
+	body := payload["body"].(map[string]any)
+	values := body["values"].([]any)
+	valueEntry := values[0].(map[string]any)
+	extensions := valueEntry["value"].([]any)
+	if len(extensions) != 1 || extensions[0] != "Existing.Extension" {
+		t.Fatalf("expected dry-run body to exclude removed value, got %+v", extensions)
 	}
 }
 

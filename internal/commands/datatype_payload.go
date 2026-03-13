@@ -8,6 +8,14 @@ import (
 	"umbraco-cli/internal/api"
 )
 
+type datatypeMutationSummary struct {
+	Action  string `json:"action"`
+	Alias   string `json:"alias"`
+	Value   string `json:"value"`
+	Changed bool   `json:"changed"`
+	Message string `json:"message,omitempty"`
+}
+
 func fetchDatatypeObject(ctx context.Context, client *api.Client, id string) (map[string]any, error) {
 	result, err := client.Get(ctx, fmt.Sprintf("%s/%s", dataTypeLegacyCollectionPath, id), api.RequestOptions{})
 	if err != nil {
@@ -282,4 +290,43 @@ func datatypeSetStringArrayValue(payload map[string]any, alias string, values []
 
 	merged[alias] = encoded
 	return merged
+}
+
+func mutateDatatypeStringArray(ctx context.Context, client *api.Client, id string, alias string, value string, dryRun bool, action string) (any, error) {
+	payload, err := fetchDatatypeObject(ctx, client, id)
+	if err != nil {
+		return nil, err
+	}
+
+	currentValues := datatypeStringArrayValue(payload, alias)
+	switch action {
+	case "add":
+		if slices.Contains(currentValues, value) {
+			return datatypeMutationSummary{
+				Action:  action,
+				Alias:   alias,
+				Value:   value,
+				Changed: false,
+				Message: "value already present",
+			}, nil
+		}
+
+		next := datatypeAddStringArrayValue(payload, alias, value)
+		return client.Put(ctx, fmt.Sprintf("%s/%s", dataTypeLegacyCollectionPath, id), next, api.RequestOptions{DryRun: dryRun})
+	case "remove":
+		if !slices.Contains(currentValues, value) {
+			return datatypeMutationSummary{
+				Action:  action,
+				Alias:   alias,
+				Value:   value,
+				Changed: false,
+				Message: "value not present",
+			}, nil
+		}
+
+		next := datatypeRemoveStringArrayValue(payload, alias, value)
+		return client.Put(ctx, fmt.Sprintf("%s/%s", dataTypeLegacyCollectionPath, id), next, api.RequestOptions{DryRun: dryRun})
+	default:
+		return nil, fmt.Errorf("unsupported datatype mutation action: %s", action)
+	}
 }

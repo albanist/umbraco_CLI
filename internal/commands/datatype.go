@@ -36,7 +36,10 @@ func RegisterDatatype(root *cobra.Command, deps Dependencies) {
 	datatype.AddCommand(datatypeCreate(deps))
 	datatype.AddCommand(datatypeUpdate(deps))
 	datatype.AddCommand(datatypeExtensions(deps))
+	datatype.AddCommand(datatypeAddExtension(deps))
+	datatype.AddCommand(datatypeRemoveExtension(deps))
 	datatype.AddCommand(datatypeAddValue(deps))
+	datatype.AddCommand(datatypeRemoveValue(deps))
 	datatype.AddCommand(datatypeDelete(deps))
 	root.AddCommand(datatype)
 }
@@ -304,13 +307,7 @@ func datatypeAddValue(deps Dependencies) *cobra.Command {
 			return err
 		}
 
-		payload, err := fetchDatatypeObject(context.Background(), deps.Client, args[0])
-		if err != nil {
-			return err
-		}
-
-		updated := datatypeAddStringArrayValue(payload, alias, value)
-		result, err := deps.Client.Put(context.Background(), fmt.Sprintf("%s/%s", dataTypeLegacyCollectionPath, args[0]), updated, api.RequestOptions{DryRun: dryRun})
+		result, err := mutateDatatypeStringArray(context.Background(), deps.Client, args[0], alias, value, dryRun, "add")
 		if err != nil {
 			return err
 		}
@@ -337,6 +334,72 @@ func datatypeExtensions(deps Dependencies) *cobra.Command {
 		}
 		return printResult(cmd, deps, result)
 	}}
+}
+
+func datatypeRemoveValue(deps Dependencies) *cobra.Command {
+	var alias string
+	var value string
+	var dryRun bool
+
+	cmd := &cobra.Command{Use: "remove-value <id>", Short: "Remove a string value from a datatype array setting", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireValue("--alias", alias); err != nil {
+			return err
+		}
+		if err := requireValue("--value", value); err != nil {
+			return err
+		}
+		if err := validate.String(alias); err != nil {
+			return err
+		}
+		if err := validate.String(value); err != nil {
+			return err
+		}
+
+		result, err := mutateDatatypeStringArray(context.Background(), deps.Client, args[0], alias, value, dryRun, "remove")
+		if err != nil {
+			return err
+		}
+		return printResult(cmd, deps, result)
+	}}
+
+	cmd.Flags().StringVar(&alias, "alias", "", "Datatype array alias to update")
+	cmd.Flags().StringVar(&value, "value", "", "String value to remove")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate request without executing")
+	return cmd
+}
+
+func datatypeAddExtension(deps Dependencies) *cobra.Command {
+	var dryRun bool
+	cmd := &cobra.Command{Use: "add-extension <id> <extension-alias>", Short: "Add an extension alias to the datatype extensions array", Args: cobra.ExactArgs(2), RunE: func(cmd *cobra.Command, args []string) error {
+		if err := validate.String(args[1]); err != nil {
+			return err
+		}
+
+		result, err := mutateDatatypeStringArray(context.Background(), deps.Client, args[0], "extensions", args[1], dryRun, "add")
+		if err != nil {
+			return err
+		}
+		return printResult(cmd, deps, result)
+	}}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate request without executing")
+	return cmd
+}
+
+func datatypeRemoveExtension(deps Dependencies) *cobra.Command {
+	var dryRun bool
+	cmd := &cobra.Command{Use: "remove-extension <id> <extension-alias>", Short: "Remove an extension alias from the datatype extensions array", Args: cobra.ExactArgs(2), RunE: func(cmd *cobra.Command, args []string) error {
+		if err := validate.String(args[1]); err != nil {
+			return err
+		}
+
+		result, err := mutateDatatypeStringArray(context.Background(), deps.Client, args[0], "extensions", args[1], dryRun, "remove")
+		if err != nil {
+			return err
+		}
+		return printResult(cmd, deps, result)
+	}}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate request without executing")
+	return cmd
 }
 
 func datatypeGetWithFallback(ctx context.Context, client *api.Client, candidates ...dataTypeRequestCandidate) (any, error) {
