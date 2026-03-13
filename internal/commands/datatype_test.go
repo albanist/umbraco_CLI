@@ -147,3 +147,271 @@ func TestDatatypeRootUsesTreeRootEndpoint(t *testing.T) {
 		t.Fatalf("unexpected datatype root payload: %+v", payload)
 	}
 }
+
+func TestDatatypeUpdateMergeJSONFetchesCurrentAndSendsMergedPayload(t *testing.T) {
+	var putPayload map[string]any
+	var getRequests int
+
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/data-type/dt-1":
+			if req.Method == http.MethodGet {
+				getRequests++
+				return datatypeJSONResponse(http.StatusOK, `{
+  "id":"dt-1",
+  "name":"Rich Text",
+  "editorAlias":"Umb.PropertyEditorUi.Tiptap",
+  "configuration":{
+    "maxChars":120,
+    "toolbar":{"bold":true,"italic":true}
+  }
+}`), nil
+			}
+			if req.Method == http.MethodPut {
+				if err := json.NewDecoder(req.Body).Decode(&putPayload); err != nil {
+					t.Fatalf("failed to decode put payload: %v", err)
+				}
+				return datatypeJSONResponse(http.StatusOK, `{"updated":true}`), nil
+			}
+			return datatypeJSONResponse(http.StatusMethodNotAllowed, `{"error":"method not allowed"}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	output, err := execute(
+		buildRootWithCollections(t, deps),
+		"datatype", "update", "dt-1",
+		"--merge-json", `{"configuration":{"toolbar":{"italic":false}}}`,
+	)
+	if err != nil {
+		t.Fatalf("datatype merge update failed: %v", err)
+	}
+
+	if getRequests != 1 {
+		t.Fatalf("expected one fetch of the current datatype, got %d", getRequests)
+	}
+	if putPayload["name"] != "Rich Text" || putPayload["editorAlias"] != "Umb.PropertyEditorUi.Tiptap" {
+		t.Fatalf("expected required fields to be preserved, got %+v", putPayload)
+	}
+
+	configuration, ok := putPayload["configuration"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing merged configuration payload: %+v", putPayload)
+	}
+	if configuration["maxChars"] != float64(120) {
+		t.Fatalf("expected untouched config fields to be preserved, got %+v", configuration)
+	}
+	toolbar, ok := configuration["toolbar"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing merged toolbar payload: %+v", configuration)
+	}
+	if toolbar["bold"] != true || toolbar["italic"] != false {
+		t.Fatalf("expected nested merge to preserve bold and update italic, got %+v", toolbar)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("failed to decode datatype merge update result: %v", err)
+	}
+	if result["updated"] != true {
+		t.Fatalf("unexpected update result payload: %+v", result)
+	}
+}
+
+func TestDatatypeUpdateMergeJSONSupportsDryRunForNestedObjectConfig(t *testing.T) {
+	var getRequests int
+
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/data-type/dt-1":
+			if req.Method == http.MethodGet {
+				getRequests++
+				return datatypeJSONResponse(http.StatusOK, `{
+  "id":"dt-1",
+  "name":"Rich Text",
+  "editorAlias":"Umb.PropertyEditorUi.Tiptap",
+  "configuration":{"toolbar":{"bold":true,"italic":true}}
+}`), nil
+			}
+			return datatypeJSONResponse(http.StatusMethodNotAllowed, `{"error":"unexpected write"}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	output, err := execute(
+		buildRootWithCollections(t, deps),
+		"datatype", "update", "dt-1",
+		"--merge-json", `{"configuration":{"toolbar":{"italic":false}}}`,
+		"--dry-run",
+	)
+	if err != nil {
+		t.Fatalf("datatype merge update dry-run failed: %v", err)
+	}
+
+	if getRequests != 1 {
+		t.Fatalf("expected dry-run merge update to fetch the current datatype once, got %d", getRequests)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("failed to decode dry-run payload: %v", err)
+	}
+	if payload["dryRun"] != true {
+		t.Fatalf("expected dryRun=true, got %+v", payload)
+	}
+	body, ok := payload["body"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing dry-run body: %+v", payload)
+	}
+	configuration, ok := body["configuration"].(map[string]any)
+	if !ok {
+		t.Fatalf("missing dry-run merged configuration: %+v", body)
+	}
+	toolbar, ok := configuration["toolbar"].(map[string]any)
+	if !ok || toolbar["bold"] != true || toolbar["italic"] != false {
+		t.Fatalf("unexpected dry-run merged toolbar payload: %+v", configuration)
+	}
+}
+
+func TestDatatypeUpdateRejectsJSONAndMergeJSONTogether(t *testing.T) {
+	deps := makeDeps()
+	root := buildRootWithCollections(t, deps)
+
+	_, err := execute(
+		root,
+		"datatype", "update", "dt-1",
+		"--json", `{"name":"Full"}`,
+		"--merge-json", `{"configuration":{"toolbar":{"italic":false}}}`,
+	)
+	if err == nil {
+		t.Fatalf("expected datatype update to reject simultaneous --json and --merge-json")
+	}
+	if !strings.Contains(err.Error(), "exactly one of --json or --merge-json") {
+		t.Fatalf("unexpected merge-json validation error: %v", err)
+	}
+}
+
+func TestDatatypeUpdateMergeJSONMergesValuesByAliasAndPreservesRequiredFields(t *testing.T) {
+	var observedPutBody map[string]any
+
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/data-type/dt-1":
+			if req.Method == http.MethodGet {
+				return datatypeJSONResponse(http.StatusOK, `{
+  "id":"dt-1",
+  "name":"Rich Text",
+  "editorAlias":"Umb.PropertyEditorUi.Tiptap",
+  "values":[
+    {"alias":"extensions","value":["Existing.Extension"]},
+    {"alias":"toolbar","value":["bold","italic"]}
+  ]
+}`), nil
+			}
+			if req.Method == http.MethodPut {
+				if err := json.NewDecoder(req.Body).Decode(&observedPutBody); err != nil {
+					t.Fatalf("failed to decode merged datatype payload: %v", err)
+				}
+				return datatypeJSONResponse(http.StatusOK, `{"ok":true}`), nil
+			}
+			return datatypeJSONResponse(http.StatusMethodNotAllowed, `{"error":"method not allowed"}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	_, err := execute(
+		buildRootWithCollections(t, deps),
+		"datatype", "update", "dt-1",
+		"--merge-json", `{"values":[{"alias":"extensions","value":["Existing.Extension","New.Extension"]}]}`,
+	)
+	if err != nil {
+		t.Fatalf("datatype merge update failed: %v", err)
+	}
+
+	if observedPutBody["name"] != "Rich Text" || observedPutBody["editorAlias"] != "Umb.PropertyEditorUi.Tiptap" {
+		t.Fatalf("expected required fields to be preserved, got %+v", observedPutBody)
+	}
+
+	values, ok := observedPutBody["values"].([]any)
+	if !ok || len(values) != 2 {
+		t.Fatalf("expected merged values array, got %+v", observedPutBody["values"])
+	}
+
+	var extensionsValue []any
+	var toolbarValue []any
+	for _, item := range values {
+		itemMap, ok := item.(map[string]any)
+		if !ok {
+			t.Fatalf("expected value item to be an object, got %T", item)
+		}
+		switch itemMap["alias"] {
+		case "extensions":
+			extensionsValue, _ = itemMap["value"].([]any)
+		case "toolbar":
+			toolbarValue, _ = itemMap["value"].([]any)
+		}
+	}
+
+	if len(extensionsValue) != 2 || extensionsValue[1] != "New.Extension" {
+		t.Fatalf("expected extensions alias to be updated, got %+v", extensionsValue)
+	}
+	if len(toolbarValue) != 2 || toolbarValue[0] != "bold" {
+		t.Fatalf("expected unrelated alias entries to be preserved, got %+v", toolbarValue)
+	}
+}
+
+func TestDatatypeUpdateMergeJSONSupportsDryRunForAliasValues(t *testing.T) {
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/data-type/dt-1":
+			if req.Method == http.MethodGet {
+				return datatypeJSONResponse(http.StatusOK, `{
+  "id":"dt-1",
+  "name":"Rich Text",
+  "editorAlias":"Umb.PropertyEditorUi.Tiptap",
+  "values":[{"alias":"extensions","value":["Existing.Extension"]}]
+}`), nil
+			}
+			return datatypeJSONResponse(http.StatusMethodNotAllowed, `{"error":"unexpected method"}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	output, err := execute(
+		buildRootWithCollections(t, deps),
+		"datatype", "update", "dt-1",
+		"--merge-json", `{"values":[{"alias":"extensions","value":["Existing.Extension","New.Extension"]}]}`,
+		"--dry-run",
+	)
+	if err != nil {
+		t.Fatalf("datatype merge dry-run failed: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("failed to decode datatype merge dry-run payload: %v", err)
+	}
+	if payload["dryRun"] != true {
+		t.Fatalf("expected dryRun=true, got %+v", payload)
+	}
+
+	body, ok := payload["body"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected dry-run body to be an object, got %+v", payload["body"])
+	}
+	if body["name"] != "Rich Text" || body["editorAlias"] != "Umb.PropertyEditorUi.Tiptap" {
+		t.Fatalf("expected merged dry-run payload to preserve required fields, got %+v", body)
+	}
+}
