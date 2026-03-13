@@ -39,7 +39,7 @@ Clone the repository and enter the project directory.
 
 ## Setup
 
-1. Configure environment variables (use `.env.example` as reference):
+1. Configure access:
 
 ```bash
 export UMBRACO_BASE_URL="https://localhost:44391"
@@ -48,9 +48,33 @@ export UMBRACO_CLIENT_SECRET="your-secret"
 ```
 
 Notes:
-- The Go CLI reads environment variables from the shell.
-- `.env.example` is a template; it is not auto-loaded by the Go runtime.
-- `UMBRACO_BASE_URL` should be the site root, for example `https://localhost:44391`, not `https://localhost:44391/umbraco`.
+- Environment variables still work and have the highest precedence.
+- Project-local `.env` files are auto-loaded for `UMBRACO_*` keys.
+- Project-local `.umbracorc.json` or `.umbracorc` can override project defaults.
+- User config is read from `~/.umbraco/config.json`.
+- If `UMBRACO_BASE_URL` is still unset, the CLI tries local `.NET` config files such as `Properties/launchSettings.json`, `appsettings.Development.json`, and `appsettings.json`.
+- `UMBRACO_BASE_URL` should be the site root, for example `https://localhost:44391`, not `https://localhost:44391/umbraco`. The CLI normalizes a trailing `/umbraco` if present.
+- Shell profiles such as `.zshrc` are not read.
+
+Config precedence, highest to lowest:
+
+1. Process env (`UMBRACO_*`)
+2. Project `.umbracorc.json` or `.umbracorc`
+3. Project `.env`
+4. User config `~/.umbraco/config.json`
+5. Auto-discovered base URL from local `.NET` config
+6. Final fallback `https://localhost:44391`
+
+Example user config:
+
+```json
+{
+  "baseUrl": "https://localhost:44314",
+  "clientId": "umbraco-back-office-api-user",
+  "clientSecret": "your-secret",
+  "outputFormat": "json"
+}
+```
 
 ### Local HTTPS trust
 
@@ -124,6 +148,18 @@ go run ./cmd/umbraco document publish <id> --json '{"cultures":["en-US"]}' --dry
 # then run without --dry-run
 ```
 
+Datatype discovery and ergonomic updates:
+
+```bash
+go run ./cmd/umbraco datatype list --skip 0 --take 50
+go run ./cmd/umbraco datatype search --query "rich text" --skip 0 --take 25
+go run ./cmd/umbraco datatype extensions <id>
+go run ./cmd/umbraco datatype update <id> --merge-json '{"configuration":{"toolbar":{"italic":false}}}' --dry-run
+go run ./cmd/umbraco datatype add-extension <id> UmbracoDotCom.Tiptap.GoogleDocsPasteCleanup --dry-run
+go run ./cmd/umbraco datatype remove-extension <id> UmbracoDotCom.Tiptap.GoogleDocsPasteCleanup --dry-run
+go run ./cmd/umbraco datatype add-value <id> --alias extensions --value Custom.Extension --dry-run
+```
+
 ## Skills Bundle
 
 This repo includes 66 bundled Umbraco skills under `skills/`.
@@ -147,13 +183,13 @@ npm run verify:skills
 - `dictionary` (6)
 - `media` (10)
 - `doctype` (10)
-- `datatype` (8)
+- `datatype` (13)
 - `template` (6)
 - `logs` (5)
 - `server` (5)
 - `health` (4)
 
-Total: **69 commands**
+Total: **74 commands**
 
 ## Agent Safety Rules
 

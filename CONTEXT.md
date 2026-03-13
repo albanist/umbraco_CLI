@@ -8,9 +8,11 @@ Implementation runtime is Go (`cmd/umbraco`).
 ## Core Principles
 
 - Primary input path is raw JSON (`--json`) and structured query JSON (`--params`).
+- Partial datatype updates can use `--merge-json` to fetch, merge, and send a full payload automatically.
 - Schema is introspectable at runtime (`umbraco schema ...`).
 - Response size should be constrained (`--fields`) to protect context window budget.
 - Mutations must be rehearsed first (`--dry-run`).
+- Config resolves from env, project config, `.env`, user config, and local `.NET` URL discovery in that order.
 
 ## Quick Command Reference
 
@@ -27,7 +29,11 @@ Implementation runtime is Go (`cmd/umbraco`).
 
 ### Schema
 - `umbraco doctype get <id>`
-- `umbraco datatype list`
+- `umbraco datatype list --skip 0 --take 50`
+- `umbraco datatype search --query "rich text"`
+- `umbraco datatype extensions <id>`
+- `umbraco datatype add-extension <id> My.Extension --dry-run`
+- `umbraco datatype remove-extension <id> My.Extension --dry-run`
 - `umbraco schema document.update`
 
 ### Diagnostics
