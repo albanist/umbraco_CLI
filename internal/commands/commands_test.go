@@ -128,3 +128,44 @@ func TestDocumentPublishPrefersJSONOverCultureInDryRun(t *testing.T) {
 		t.Fatalf("expected --json cultures to take precedence, got: %+v", body)
 	}
 }
+
+func TestDatatypeSchemaMatchesCompatibilityPrimaryEndpoints(t *testing.T) {
+	deps := makeDeps()
+	root := buildRootWithCollections(t, deps)
+
+	output, err := execute(root, "schema", "datatype.list")
+	if err != nil {
+		t.Fatalf("schema datatype.list failed: %v", err)
+	}
+	var listPayload map[string]any
+	if err := json.Unmarshal([]byte(output), &listPayload); err != nil {
+		t.Fatalf("failed to decode datatype.list schema: %v", err)
+	}
+	if listPayload["path"] != "/filter/data-type" {
+		t.Fatalf("unexpected datatype.list path: %+v", listPayload)
+	}
+
+	output, err = execute(root, "schema", "datatype.root")
+	if err != nil {
+		t.Fatalf("schema datatype.root failed: %v", err)
+	}
+	var rootPayload map[string]any
+	if err := json.Unmarshal([]byte(output), &rootPayload); err != nil {
+		t.Fatalf("failed to decode datatype.root schema: %v", err)
+	}
+	if rootPayload["path"] != "/tree/data-type/root" {
+		t.Fatalf("unexpected datatype.root path: %+v", rootPayload)
+	}
+
+	output, err = execute(root, "schema", "datatype.search")
+	if err != nil {
+		t.Fatalf("schema datatype.search failed: %v", err)
+	}
+	var searchPayload map[string]any
+	if err := json.Unmarshal([]byte(output), &searchPayload); err != nil {
+		t.Fatalf("failed to decode datatype.search schema: %v", err)
+	}
+	if searchPayload["path"] != "/item/data-type/search" {
+		t.Fatalf("unexpected datatype.search path: %+v", searchPayload)
+	}
+}

@@ -3,11 +3,27 @@ package commands
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
 )
+
+const (
+	dataTypeLegacyCollectionPath = "/data-type"
+	dataTypeLegacyRootPath       = "/data-type/root"
+	dataTypeLegacySearchPath     = "/data-type/search"
+	dataTypeFilterPath           = "/filter/data-type"
+	dataTypeItemSearchPath       = "/item/data-type/search"
+	dataTypeTreeRootPath         = "/tree/data-type/root"
+)
+
+type dataTypeRequestCandidate struct {
+	path string
+	opts api.RequestOptions
+}
 
 func RegisterDatatype(root *cobra.Command, deps Dependencies) {
 	datatype := &cobra.Command{Use: "datatype", Short: "Data type operations"}
@@ -25,7 +41,7 @@ func RegisterDatatype(root *cobra.Command, deps Dependencies) {
 func datatypeGet(deps Dependencies) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{Use: "get <id>", Short: "Get data type by ID", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := deps.Client.Get(context.Background(), fmt.Sprintf("/data-type/%s", args[0]), api.RequestOptions{Fields: fields})
+		result, err := deps.Client.Get(context.Background(), fmt.Sprintf("%s/%s", dataTypeLegacyCollectionPath, args[0]), api.RequestOptions{Fields: fields})
 		if err != nil {
 			return err
 		}
@@ -37,42 +53,129 @@ func datatypeGet(deps Dependencies) *cobra.Command {
 
 func datatypeList(deps Dependencies) *cobra.Command {
 	var fields string
+	var paramsRaw string
+	var skip int
+	var take int
+
 	cmd := &cobra.Command{Use: "list", Short: "List data types", RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := deps.Client.Get(context.Background(), "/data-type", api.RequestOptions{Fields: fields})
+		if strings.TrimSpace(fields) != "" {
+			if cmd.Flags().Changed("params") || cmd.Flags().Changed("skip") || cmd.Flags().Changed("take") {
+				return fmt.Errorf("--fields cannot be combined with --params, --skip, or --take on datatype list")
+			}
+
+			result, err := deps.Client.Get(context.Background(), dataTypeLegacyCollectionPath, api.RequestOptions{Fields: fields})
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, deps, result)
+		}
+
+		params, err := parseParams(paramsRaw)
+		if err != nil {
+			return err
+		}
+		if params == nil {
+			params = map[string]any{}
+			if skip >= 0 {
+				params["skip"] = skip
+			}
+			if take > 0 {
+				params["take"] = take
+			}
+		}
+
+		result, err := datatypeGetWithFallback(context.Background(), deps.Client,
+			dataTypeRequestCandidate{path: dataTypeFilterPath, opts: api.RequestOptions{Params: params}},
+			dataTypeRequestCandidate{path: dataTypeTreeRootPath, opts: api.RequestOptions{Params: params}},
+			dataTypeRequestCandidate{path: dataTypeLegacyCollectionPath, opts: api.RequestOptions{}},
+		)
 		if err != nil {
 			return err
 		}
 		return printResult(cmd, deps, result)
 	}}
 	cmd.Flags().StringVar(&fields, "fields", "", "Limit response fields")
+	cmd.Flags().StringVar(&paramsRaw, "params", "", "Query parameters as JSON")
+	cmd.Flags().IntVar(&skip, "skip", 0, "Pagination offset")
+	cmd.Flags().IntVar(&take, "take", 100, "Pagination page size")
 	return cmd
 }
 
 func datatypeRoot(deps Dependencies) *cobra.Command {
-	return &cobra.Command{Use: "root", Short: "Get root data types", RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := deps.Client.Get(context.Background(), "/data-type/root", api.RequestOptions{})
+	var paramsRaw string
+	var skip int
+	var take int
+	cmd := &cobra.Command{Use: "root", Short: "Get root data types", RunE: func(cmd *cobra.Command, args []string) error {
+		params, err := parseParams(paramsRaw)
+		if err != nil {
+			return err
+		}
+		if params == nil {
+			params = map[string]any{}
+			if skip >= 0 {
+				params["skip"] = skip
+			}
+			if take > 0 {
+				params["take"] = take
+			}
+		}
+
+		result, err := datatypeGetWithFallback(context.Background(), deps.Client,
+			dataTypeRequestCandidate{path: dataTypeTreeRootPath, opts: api.RequestOptions{Params: params}},
+			dataTypeRequestCandidate{path: dataTypeLegacyRootPath, opts: api.RequestOptions{}},
+		)
 		if err != nil {
 			return err
 		}
 		return printResult(cmd, deps, result)
 	}}
+	cmd.Flags().StringVar(&paramsRaw, "params", "", "Query parameters as JSON")
+	cmd.Flags().IntVar(&skip, "skip", 0, "Pagination offset")
+	cmd.Flags().IntVar(&take, "take", 100, "Pagination page size")
+	return cmd
 }
 
 func datatypeSearch(deps Dependencies) *cobra.Command {
 	var paramsRaw string
 	var query string
+	var skip int
+	var take int
 	cmd := &cobra.Command{Use: "search", Short: "Search data types", RunE: func(cmd *cobra.Command, args []string) error {
 		params, err := parseParams(paramsRaw)
 		if err != nil {
 			return err
 		}
 		if params == nil {
-			if query == "" {
+			if strings.TrimSpace(query) == "" {
 				return fmt.Errorf("datatype search requires either --params or --query")
 			}
 			params = map[string]any{"query": query}
+			if skip >= 0 {
+				params["skip"] = skip
+			}
+			if take > 0 {
+				params["take"] = take
+			}
 		}
-		result, err := deps.Client.Get(context.Background(), "/data-type/search", api.RequestOptions{Params: params})
+
+		searchParams := cloneParams(params)
+		filterParams := cloneParams(params)
+		if queryValue, ok := searchParams["query"]; ok {
+			if _, exists := filterParams["filter"]; !exists {
+				filterParams["filter"] = queryValue
+			}
+		}
+		if filterValue, ok := filterParams["filter"]; ok {
+			if _, exists := searchParams["query"]; !exists {
+				searchParams["query"] = filterValue
+			}
+		}
+
+		result, err := datatypeGetWithFallback(context.Background(), deps.Client,
+			dataTypeRequestCandidate{path: dataTypeItemSearchPath, opts: api.RequestOptions{Params: searchParams}},
+			dataTypeRequestCandidate{path: dataTypeFilterPath, opts: api.RequestOptions{Params: filterParams}},
+			dataTypeRequestCandidate{path: dataTypeLegacySearchPath, opts: api.RequestOptions{Params: searchParams}},
+		)
 		if err != nil {
 			return err
 		}
@@ -80,12 +183,14 @@ func datatypeSearch(deps Dependencies) *cobra.Command {
 	}}
 	cmd.Flags().StringVar(&paramsRaw, "params", "", "Query parameters as JSON")
 	cmd.Flags().StringVar(&query, "query", "", "Search query")
+	cmd.Flags().IntVar(&skip, "skip", 0, "Pagination offset")
+	cmd.Flags().IntVar(&take, "take", 100, "Pagination page size")
 	return cmd
 }
 
 func datatypeIsUsed(deps Dependencies) *cobra.Command {
 	return &cobra.Command{Use: "is-used <id>", Short: "Check whether a data type is in use", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := deps.Client.Get(context.Background(), fmt.Sprintf("/data-type/%s/is-used", args[0]), api.RequestOptions{})
+		result, err := deps.Client.Get(context.Background(), fmt.Sprintf("%s/%s/is-used", dataTypeLegacyCollectionPath, args[0]), api.RequestOptions{})
 		if err != nil {
 			return err
 		}
@@ -104,7 +209,7 @@ func datatypeCreate(deps Dependencies) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		result, err := deps.Client.Post(context.Background(), "/data-type", body, api.RequestOptions{DryRun: dryRun})
+		result, err := deps.Client.Post(context.Background(), dataTypeLegacyCollectionPath, body, api.RequestOptions{DryRun: dryRun})
 		if err != nil {
 			return err
 		}
@@ -126,7 +231,7 @@ func datatypeUpdate(deps Dependencies) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		result, err := deps.Client.Put(context.Background(), fmt.Sprintf("/data-type/%s", args[0]), body, api.RequestOptions{DryRun: dryRun})
+		result, err := deps.Client.Put(context.Background(), fmt.Sprintf("%s/%s", dataTypeLegacyCollectionPath, args[0]), body, api.RequestOptions{DryRun: dryRun})
 		if err != nil {
 			return err
 		}
@@ -140,7 +245,7 @@ func datatypeUpdate(deps Dependencies) *cobra.Command {
 func datatypeDelete(deps Dependencies) *cobra.Command {
 	var dryRun bool
 	cmd := &cobra.Command{Use: "delete <id>", Short: "Delete data type", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := deps.Client.Delete(context.Background(), fmt.Sprintf("/data-type/%s", args[0]), api.RequestOptions{DryRun: dryRun})
+		result, err := deps.Client.Delete(context.Background(), fmt.Sprintf("%s/%s", dataTypeLegacyCollectionPath, args[0]), api.RequestOptions{DryRun: dryRun})
 		if err != nil {
 			return err
 		}
@@ -148,4 +253,41 @@ func datatypeDelete(deps Dependencies) *cobra.Command {
 	}}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate request without executing")
 	return cmd
+}
+
+func datatypeGetWithFallback(ctx context.Context, client *api.Client, candidates ...dataTypeRequestCandidate) (any, error) {
+	var lastNotFound error
+
+	for _, candidate := range candidates {
+		result, err := client.Get(ctx, candidate.path, candidate.opts)
+		if err == nil {
+			return result, nil
+		}
+
+		apiErr, ok := err.(*api.APIError)
+		if ok && apiErr.StatusCode == http.StatusNotFound {
+			lastNotFound = err
+			continue
+		}
+
+		return nil, err
+	}
+
+	if lastNotFound != nil {
+		return nil, lastNotFound
+	}
+
+	return nil, fmt.Errorf("no datatype endpoint candidates were configured")
+}
+
+func cloneParams(input map[string]any) map[string]any {
+	if input == nil {
+		return nil
+	}
+
+	cloned := make(map[string]any, len(input))
+	for key, value := range input {
+		cloned[key] = value
+	}
+	return cloned
 }

@@ -98,9 +98,9 @@ var rawSchemas = map[string]rawSchema{
 
 	// datatype (8)
 	"datatype.get":     {Method: "GET", Path: "/data-type/{id}", PathParams: map[string]ParamSchema{"id": idParam}, QueryParams: map[string]ParamSchema{"fields": fieldsQuery}},
-	"datatype.list":    {Method: "GET", Path: "/data-type", QueryParams: map[string]ParamSchema{"fields": fieldsQuery}},
-	"datatype.root":    {Method: "GET", Path: "/data-type/root"},
-	"datatype.search":  {Method: "GET", Path: "/data-type/search", QueryParams: map[string]ParamSchema{"query": {Type: "string"}}},
+	"datatype.list":    {Method: "GET", Path: "/filter/data-type", QueryParams: map[string]ParamSchema{"skip": {Type: "number"}, "take": {Type: "number"}}},
+	"datatype.root":    {Method: "GET", Path: "/tree/data-type/root", QueryParams: map[string]ParamSchema{"skip": {Type: "number"}, "take": {Type: "number"}}},
+	"datatype.search":  {Method: "GET", Path: "/item/data-type/search", QueryParams: map[string]ParamSchema{"query": {Type: "string"}, "skip": {Type: "number"}, "take": {Type: "number"}}},
 	"datatype.is-used": {Method: "GET", Path: "/data-type/{id}/is-used", PathParams: map[string]ParamSchema{"id": idParam}},
 	"datatype.create":  {Method: "POST", Path: "/data-type", RequestBody: genericRequestBody},
 	"datatype.update":  {Method: "PUT", Path: "/data-type/{id}", PathParams: map[string]ParamSchema{"id": idParam}, RequestBody: genericRequestBody},
