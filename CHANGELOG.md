@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.1 - 2026-03-13
+
+- fixed release automation so GoReleaser uses a dedicated token for cross-repo Homebrew tap updates
+- bumped patch version after the `v0.2.0` Homebrew publish failure
+
 ## v0.2.0 - 2026-03-13
 
 - fixed datatype discovery commands to use compatibility-aware Management API routes
