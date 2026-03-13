@@ -123,6 +123,36 @@ func TestRequestReturnsAPIErrorBody(t *testing.T) {
 	if !strings.Contains(err.Error(), "API 400") {
 		t.Fatalf("expected status in error, got: %v", err)
 	}
+	if !strings.Contains(err.Error(), "GET /umbraco/management/api/v1/document/root") {
+		t.Fatalf("expected method and path in API error, got: %v", err)
+	}
+}
+
+func TestRequestAddsNotFoundHintWithResolvedPath(t *testing.T) {
+	httpClient := newTestHTTPClient(func(r *http.Request) (*http.Response, error) {
+		switch r.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return jsonResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`, nil), nil
+		case "/umbraco/management/api/v1/item/data-type/search":
+			return jsonResponse(http.StatusNotFound, `null`, nil), nil
+		default:
+			return jsonResponse(http.StatusNotFound, `{"error":"not found"}`, nil), nil
+		}
+	})
+
+	cfg := config.Config{BaseURL: "https://example.test", ClientID: "client-id", ClientSecret: "client-secret"}
+	client := NewClient(cfg, httpClient, auth.New(cfg, httpClient))
+
+	_, err := client.Get(context.Background(), "/item/data-type/search", RequestOptions{Params: map[string]any{"query": "google"}})
+	if err == nil {
+		t.Fatalf("expected API error")
+	}
+	if !strings.Contains(err.Error(), "GET /umbraco/management/api/v1/item/data-type/search?query=google") {
+		t.Fatalf("expected resolved request path in error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "may not be supported in your Umbraco version") {
+		t.Fatalf("expected version hint in error, got: %v", err)
+	}
 }
 
 func TestDryRunBodySerializesConsistently(t *testing.T) {

@@ -39,11 +39,23 @@ type Client struct {
 
 type APIError struct {
 	StatusCode int
+	Method     string
+	Path       string
 	Payload    any
+	Hint       string
 }
 
 func (e *APIError) Error() string {
 	encoded, _ := json.Marshal(e.Payload)
+	if e.Method != "" || e.Path != "" {
+		if e.Hint != "" {
+			return fmt.Sprintf("API %d %s %s: %s. Hint: %s", e.StatusCode, e.Method, e.Path, encoded, e.Hint)
+		}
+		return fmt.Sprintf("API %d %s %s: %s", e.StatusCode, e.Method, e.Path, encoded)
+	}
+	if e.Hint != "" {
+		return fmt.Sprintf("API %d: %s. Hint: %s", e.StatusCode, encoded, e.Hint)
+	}
 	return fmt.Sprintf("API %d: %s", e.StatusCode, encoded)
 }
 
@@ -129,14 +141,14 @@ func (c *Client) Request(ctx context.Context, method string, path string, body a
 	if err != nil {
 		return nil, err
 	}
+	relativePath := c.relativeAPIPath(fullURL)
 
 	if opts.DryRun {
-		relative := strings.TrimPrefix(fullURL, strings.TrimRight(c.cfg.BaseURL, "/"))
 		return DryRunResult{
 			DryRun: true,
 			Valid:  true,
 			Method: method,
-			Path:   relative,
+			Path:   relativePath,
 			Body:   body,
 		}, nil
 	}
@@ -200,13 +212,34 @@ func (c *Client) Request(ctx context.Context, method string, path string, body a
 		}
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return nil, &APIError{StatusCode: resp.StatusCode, Payload: result}
+			return nil, &APIError{
+				StatusCode: resp.StatusCode,
+				Method:     method,
+				Path:       relativePath,
+				Payload:    result,
+				Hint:       buildAPIErrorHint(resp.StatusCode, method, relativePath),
+			}
 		}
 
 		return result, nil
 	}
 
 	return nil, fmt.Errorf("request retry budget exhausted")
+}
+
+func (c *Client) relativeAPIPath(fullURL string) string {
+	return strings.TrimPrefix(fullURL, strings.TrimRight(c.cfg.BaseURL, "/"))
+}
+
+func buildAPIErrorHint(statusCode int, method string, path string) string {
+	if statusCode != http.StatusNotFound {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/umbraco/management/api/v1/") {
+		return ""
+	}
+
+	return fmt.Sprintf("endpoint %s %s was not found; this may not be supported in your Umbraco version or may require a different route", method, path)
 }
 
 func (c *Client) Get(ctx context.Context, path string, opts RequestOptions) (any, error) {
