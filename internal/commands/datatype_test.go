@@ -148,6 +148,45 @@ func TestDatatypeRootUsesTreeRootEndpoint(t *testing.T) {
 	}
 }
 
+func TestDatatypeExtensionsReadsAliasValueArray(t *testing.T) {
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/data-type/dt-1":
+			return datatypeJSONResponse(http.StatusOK, `{
+  "id":"dt-1",
+  "name":"Rich Text",
+  "editorAlias":"Umb.PropertyEditorUi.Tiptap",
+  "values":[
+    {"alias":"extensions","value":["Existing.Extension","New.Extension"]},
+    {"alias":"toolbar","value":["bold","italic"]}
+  ]
+}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	output, err := execute(buildRootWithCollections(t, deps), "datatype", "extensions", "dt-1")
+	if err != nil {
+		t.Fatalf("datatype extensions failed: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(output), &payload); err != nil {
+		t.Fatalf("failed to decode datatype extensions payload: %v", err)
+	}
+	if payload["name"] != "Rich Text" {
+		t.Fatalf("unexpected datatype extensions payload: %+v", payload)
+	}
+
+	extensions, ok := payload["extensions"].([]any)
+	if !ok || len(extensions) != 2 || extensions[1] != "New.Extension" {
+		t.Fatalf("expected extension aliases in payload, got %+v", payload["extensions"])
+	}
+}
+
 func TestDatatypeUpdateMergeJSONFetchesCurrentAndSendsMergedPayload(t *testing.T) {
 	var putPayload map[string]any
 	var getRequests int

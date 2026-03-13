@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"umbraco-cli/internal/api"
 )
@@ -132,4 +133,153 @@ func cloneDatatypeValue(value any) any {
 	default:
 		return typed
 	}
+}
+
+func datatypeStringArrayValue(payload map[string]any, alias string) []string {
+	for _, candidate := range []func(map[string]any, string) ([]string, bool){
+		datatypeStringArrayFromTopLevel,
+		datatypeStringArrayFromConfiguration,
+		datatypeStringArrayFromValues,
+	} {
+		if values, ok := candidate(payload, alias); ok {
+			return values
+		}
+	}
+
+	return []string{}
+}
+
+func datatypeStringArrayFromTopLevel(payload map[string]any, alias string) ([]string, bool) {
+	value, ok := payload[alias]
+	if !ok {
+		return nil, false
+	}
+	values, ok := stringArray(value)
+	return values, ok
+}
+
+func datatypeStringArrayFromConfiguration(payload map[string]any, alias string) ([]string, bool) {
+	configuration, ok := payload["configuration"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	value, ok := configuration[alias]
+	if !ok {
+		return nil, false
+	}
+	values, ok := stringArray(value)
+	return values, ok
+}
+
+func datatypeStringArrayFromValues(payload map[string]any, alias string) ([]string, bool) {
+	items, ok := payload["values"].([]any)
+	if !ok {
+		return nil, false
+	}
+
+	for _, item := range items {
+		itemAlias, itemMap, ok := aliasObject(item)
+		if !ok || itemAlias != alias {
+			continue
+		}
+
+		values, ok := stringArray(itemMap["value"])
+		return values, ok
+	}
+
+	return nil, false
+}
+
+func stringArray(value any) ([]string, bool) {
+	rawItems, ok := value.([]any)
+	if !ok {
+		return nil, false
+	}
+
+	items := make([]string, 0, len(rawItems))
+	for _, item := range rawItems {
+		text, ok := item.(string)
+		if !ok {
+			return nil, false
+		}
+		items = append(items, text)
+	}
+	return items, true
+}
+
+func datatypeAddStringArrayValue(payload map[string]any, alias string, value string) map[string]any {
+	values := datatypeStringArrayValue(payload, alias)
+	if !slices.Contains(values, value) {
+		values = append(values, value)
+	}
+	return datatypeSetStringArrayValue(payload, alias, values)
+}
+
+func datatypeRemoveStringArrayValue(payload map[string]any, alias string, value string) map[string]any {
+	current := datatypeStringArrayValue(payload, alias)
+	next := make([]string, 0, len(current))
+	for _, item := range current {
+		if item != value {
+			next = append(next, item)
+		}
+	}
+	return datatypeSetStringArrayValue(payload, alias, next)
+}
+
+func datatypeSetStringArrayValue(payload map[string]any, alias string, values []string) map[string]any {
+	merged := cloneObject(payload)
+	encoded := make([]any, 0, len(values))
+	for _, value := range values {
+		encoded = append(encoded, value)
+	}
+
+	if configuration, ok := merged["configuration"].(map[string]any); ok {
+		if _, exists := configuration[alias]; exists {
+			nextConfiguration := cloneObject(configuration)
+			nextConfiguration[alias] = encoded
+			merged["configuration"] = nextConfiguration
+			return merged
+		}
+	}
+
+	if topLevelValue, exists := merged[alias]; exists {
+		if _, ok := stringArray(topLevelValue); ok {
+			merged[alias] = encoded
+			return merged
+		}
+	}
+
+	if rawValues, ok := merged["values"].([]any); ok {
+		nextValues := make([]any, 0, len(rawValues)+1)
+		replaced := false
+		for _, item := range rawValues {
+			itemAlias, itemMap, ok := aliasObject(item)
+			if !ok {
+				nextValues = append(nextValues, cloneDatatypeValue(item))
+				continue
+			}
+			if itemAlias != alias {
+				nextValues = append(nextValues, cloneObject(itemMap))
+				continue
+			}
+
+			nextItem := cloneObject(itemMap)
+			nextItem["value"] = encoded
+			nextValues = append(nextValues, nextItem)
+			replaced = true
+		}
+
+		if !replaced {
+			nextValues = append(nextValues, map[string]any{
+				"alias": alias,
+				"value": encoded,
+			})
+		}
+
+		merged["values"] = nextValues
+		return merged
+	}
+
+	merged[alias] = encoded
+	return merged
 }

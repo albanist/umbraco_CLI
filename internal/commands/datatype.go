@@ -34,6 +34,7 @@ func RegisterDatatype(root *cobra.Command, deps Dependencies) {
 	datatype.AddCommand(datatypeIsUsed(deps))
 	datatype.AddCommand(datatypeCreate(deps))
 	datatype.AddCommand(datatypeUpdate(deps))
+	datatype.AddCommand(datatypeExtensions(deps))
 	datatype.AddCommand(datatypeDelete(deps))
 	root.AddCommand(datatype)
 }
@@ -280,6 +281,22 @@ func datatypeDelete(deps Dependencies) *cobra.Command {
 	}}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Validate request without executing")
 	return cmd
+}
+
+func datatypeExtensions(deps Dependencies) *cobra.Command {
+	return &cobra.Command{Use: "extensions <id>", Short: "List enabled data type extension aliases", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		payload, err := fetchDatatypeObject(context.Background(), deps.Client, args[0])
+		if err != nil {
+			return err
+		}
+
+		result := map[string]any{
+			"id":         payload["id"],
+			"name":       payload["name"],
+			"extensions": datatypeStringArrayValue(payload, "extensions"),
+		}
+		return printResult(cmd, deps, result)
+	}}
 }
 
 func datatypeGetWithFallback(ctx context.Context, client *api.Client, candidates ...dataTypeRequestCandidate) (any, error) {
