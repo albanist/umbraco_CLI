@@ -142,7 +142,7 @@ umbraco webhook delete <id>
 umbraco webhook delete <id> --dry-run
 
 # 2. Execute
-umbraco webhook delete <id>
+umbraco webhook delete <id> --force
 ```
 
 ### update

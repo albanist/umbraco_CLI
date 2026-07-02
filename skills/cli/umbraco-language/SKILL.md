@@ -133,7 +133,7 @@ umbraco language delete <iso-code>
 umbraco language delete <iso-code> --dry-run
 
 # 2. Execute
-umbraco language delete <iso-code>
+umbraco language delete <iso-code> --force
 ```
 
 ### update

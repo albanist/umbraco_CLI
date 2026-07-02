@@ -313,7 +313,7 @@ umbraco document bulk-update
 umbraco document bulk-update --dry-run
 
 # 2. Execute
-umbraco document bulk-update
+umbraco document bulk-update --force
 ```
 
 ### copy
@@ -384,7 +384,7 @@ umbraco document csv-update
 umbraco document csv-update --dry-run
 
 # 2. Execute
-umbraco document csv-update
+umbraco document csv-update --force
 ```
 
 ### domains set
@@ -452,7 +452,7 @@ umbraco document public-access remove <id>
 umbraco document public-access remove <id> --dry-run
 
 # 2. Execute
-umbraco document public-access remove <id>
+umbraco document public-access remove <id> --force
 ```
 
 ### public-access set

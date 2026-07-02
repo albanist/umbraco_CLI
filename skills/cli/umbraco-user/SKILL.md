@@ -144,7 +144,7 @@ umbraco user client-credentials delete <user-id> <client-id>
 umbraco user client-credentials delete <user-id> <client-id> --dry-run
 
 # 2. Execute
-umbraco user client-credentials delete <user-id> <client-id>
+umbraco user client-credentials delete <user-id> <client-id> --force
 ```
 
 ### create
@@ -189,7 +189,7 @@ umbraco user delete <id>
 umbraco user delete <id> --dry-run
 
 # 2. Execute
-umbraco user delete <id>
+umbraco user delete <id> --force
 ```
 
 ### disable

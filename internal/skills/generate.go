@@ -425,9 +425,15 @@ func renderSubcommand(b *strings.Builder, collection string, sub skillCommand) {
 
 	// Safety note for mutations
 	if isMutationCommand(sub.Command) {
+		// Force-gated commands refuse to run with neither --dry-run nor
+		// --force, so the execute step must carry --force to actually fire.
+		execute := fmt.Sprintf("umbraco %s %s", collection, sub.FullUse)
+		if sub.Command.Flags().Lookup("force") != nil {
+			execute += " --force"
+		}
 		b.WriteString("**Safe pattern:**\n\n")
 		fmt.Fprintf(b, "```bash\n# 1. Dry run first\numbraco %s %s --dry-run\n\n", collection, sub.FullUse)
-		fmt.Fprintf(b, "# 2. Execute\numbraco %s %s\n```\n\n", collection, sub.FullUse)
+		fmt.Fprintf(b, "# 2. Execute\n%s\n```\n\n", execute)
 	}
 }
 
