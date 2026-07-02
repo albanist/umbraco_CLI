@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- added `redirect` command group for the redirect URL tracker: `list` (paginated, `--filter` URL substring), `get <document-id>` (redirects recorded for one document), `delete` (gated behind `--force`/`--dry-run`), `status`, and `enable`/`disable` toggles; all commands schema-introspectable and verified live against a local instance
+
 - added `published-cache` command group for stale-content incident response: `status` reads the rebuild state (falls back to the legacy status route on older versions), `rebuild` rebuilds the published cache from the database (gated behind `--force`/`--dry-run` — expensive on large sites), and `reload` refreshes the in-memory cache cheaply; verified live against a local instance
 
 - consolidated the command layer: a new `createCommand` builder replaces seven near-identical create implementations (document, media, member, user, invite, doctype, datatype) so the create contract cannot drift per resource; destructive-command gating collapses into one `requireForceOrDryRun` helper with canonical wording; `member list`/`member search` now use the standard pagination flags and sentinel; oversized files split by concern (`logs.go` 850→152 lines plus query/output helpers, `document.go` gains dedicated publish and bulk files); command conventions documented in `internal/commands/CONVENTIONS.md`
