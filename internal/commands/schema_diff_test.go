@@ -2,6 +2,7 @@ package commands
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -435,5 +436,12 @@ func TestSchemaDiffDictionaryDetectsParentMoves(t *testing.T) {
 	}
 	if !strings.Contains(out, "parentName") || !strings.Contains(out, "Forms") {
 		t.Fatalf("expected parentName delta Common -> Forms, got %s", out)
+	}
+}
+
+func TestSchemaDiffFoundErrorCarriesExitCode(t *testing.T) {
+	var coder interface{ ExitCode() int }
+	if !errors.As(error(schemaDiffFoundError{}), &coder) || coder.ExitCode() != 2 {
+		t.Fatalf("expected schema diff differences to map to exit code 2")
 	}
 }
