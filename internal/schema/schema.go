@@ -270,6 +270,11 @@ var endpointBindings = map[string]endpointBinding{
 	"published-cache.rebuild": {Method: "POST", Path: "/published-cache/rebuild"},
 	"published-cache.reload":  {Method: "POST", Path: "/published-cache/reload"},
 
+	// indexer
+	"indexer.list":    {Method: "GET", Path: "/indexer"},
+	"indexer.get":     {Method: "GET", Path: "/indexer/{indexName}"},
+	"indexer.rebuild": {Method: "POST", Path: "/indexer/{indexName}/rebuild"},
+
 	// redirect
 	"redirect.list":    {Method: "GET", Path: "/redirect-management"},
 	"redirect.get":     {Method: "GET", Path: "/redirect-management/{id}"},
