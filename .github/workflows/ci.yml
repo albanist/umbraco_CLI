@@ -10,6 +10,23 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+
   test:
     runs-on: ubuntu-latest
 
@@ -37,7 +54,23 @@ jobs:
         run: go vet ./...
 
       - name: Run tests
-        run: go test -race ./...
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Enforce coverage floor
+        run: |
+          total=$(go tool cover -func=coverage.out | tail -1 | awk '{sub("%", "", $NF); print $NF}')
+          floor=74.0
+          echo "total coverage: ${total}% (floor: ${floor}%)"
+          if ! awk -v total="$total" -v floor="$floor" 'BEGIN { exit (total >= floor) ? 0 : 1 }'; then
+            echo "coverage ${total}% is below the ${floor}% floor" >&2
+            exit 1
+          fi
+
+      - name: Upload coverage profile
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-profile
+          path: coverage.out
 
       - name: Check generated OpenAPI schemas are fresh
         run: |
