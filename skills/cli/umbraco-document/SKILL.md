@@ -25,6 +25,9 @@ umbraco document <command> [flags]
 | `document ancestors <id>` | Get ancestor documents |
 | `document are-referenced` | Bulk check: which of these document IDs are referenced by something |
 | `document audit-log <id>` | List the audit trail for a document (who did what, when) |
+| `document bin children <id>` | List children of a trashed document item |
+| `document bin list` | List document items at the recycle bin root |
+| `document bin original-parent <id>` | Get the original parent of a trashed document item (the default restore target) |
 | `document children <id>` | Get child documents (paginated; --skip/--take/--all) |
 | `document domains get <id>` | Get the domains assigned to a document |
 | `document get <id>` | Get a document by ID |
@@ -73,6 +76,52 @@ GET /document/{id}/audit-log. Pass --params for orderDirection or sinceDate filt
 | `--skip` | int | -1 | Skip count (passes through as ?skip=N; lets you walk past the server page size on large children/root collections) |
 | `--summarize` | bool | false | Return only id/name/alias fields for item collections |
 | `--take` | int | -1 | Take count (passes through as ?take=N; combine with --skip to page) |
+
+### bin children
+
+```bash
+umbraco document bin children <id>
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--all` | bool | false | Walk every page until exhausted (auto-paginates with --take as the page size, default 500; combine with --skip to start partway through). Bounded by an internal 100k-item ceiling. |
+| `--fields` | string | — | Limit response fields (comma-separated top-level keys) |
+| `--first-n` | int | 0 | Return only the first N items from item collections |
+| `--ids-only` | bool | false | Return only item IDs for item collections |
+| `--params` | string | — | Query parameters as JSON |
+| `--skip` | int | -1 | Skip count (passes through as ?skip=N; lets you walk past the server page size on large children/root collections) |
+| `--summarize` | bool | false | Return only id/name/alias fields for item collections |
+| `--take` | int | -1 | Take count (passes through as ?take=N; combine with --skip to page) |
+
+### bin list
+
+```bash
+umbraco document bin list
+```
+
+GET /recycle-bin/document/root. Paginated; use 'bin children <id>' to descend into trashed subtrees.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--all` | bool | false | Walk every page until exhausted (auto-paginates with --take as the page size, default 500; combine with --skip to start partway through). Bounded by an internal 100k-item ceiling. |
+| `--fields` | string | — | Limit response fields (comma-separated top-level keys) |
+| `--first-n` | int | 0 | Return only the first N items from item collections |
+| `--ids-only` | bool | false | Return only item IDs for item collections |
+| `--params` | string | — | Query parameters as JSON |
+| `--skip` | int | -1 | Skip count (passes through as ?skip=N; lets you walk past the server page size on large children/root collections) |
+| `--summarize` | bool | false | Return only id/name/alias fields for item collections |
+| `--take` | int | -1 | Take count (passes through as ?take=N; combine with --skip to page) |
+
+### bin original-parent
+
+```bash
+umbraco document bin original-parent <id>
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--fields` | string | — | Limit response fields (comma-separated top-level keys) |
 
 ### children
 
@@ -272,6 +321,8 @@ umbraco document version list <document-id>
 
 | Command | Description |
 |---------|-------------|
+| `document bin delete <id>` | Permanently delete one document item from the recycle bin |
+| `document bin empty` | Permanently delete everything in the document recycle bin |
 | `document bulk-update` | Update multiple documents from an explicit ID list |
 | `document copy <id>` | Copy a document |
 | `document create` | Create a document |
@@ -290,6 +341,50 @@ umbraco document version list <document-id>
 | `document update-properties <id>` | Update document properties (merges into values[] by alias) |
 | `document version prevent-cleanup <version-id>` | Pin a version so scheduled history cleanup never deletes it |
 | `document version rollback <version-id>` | Roll the document back to this version |
+
+### bin delete
+
+```bash
+umbraco document bin delete <id>
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--dry-run` | bool | false | Print the planned request without executing |
+| `--force` | bool | false | Confirm permanent deletion |
+
+**Safe pattern:**
+
+```bash
+# 1. Dry run first
+umbraco document bin delete <id> --dry-run
+
+# 2. Execute
+umbraco document bin delete <id> --force
+```
+
+### bin empty
+
+```bash
+umbraco document bin empty
+```
+
+DELETE /recycle-bin/document. Destroys every trashed document item; there is no undo.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--dry-run` | bool | false | Print the planned request without executing |
+| `--force` | bool | false | Confirm emptying the recycle bin |
+
+**Safe pattern:**
+
+```bash
+# 1. Dry run first
+umbraco document bin empty --dry-run
+
+# 2. Execute
+umbraco document bin empty --force
+```
 
 ### bulk-update
 
