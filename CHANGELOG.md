@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.4.7 - 2026-07-02
+
 - removed the vendored extension-development skills bundle and its Node toolchain (a PoC-era aggregation of `umbraco/Umbraco-CMS-Backoffice-Skills` content): `skills/` now contains only the CLI-generated `skills/cli/`, the repo is pure Go with no Node.js requirement, and extension-development skills should be sourced from their upstream repo
 
 - documented the exit-code contract and gave failure classes distinct codes: 0 success, 1 usage/local error, 2 `schema diff` differences found, 3 authentication/credential failure, 4 Management API error response — CI gates and scripts can now branch on `$?` instead of parsing stderr; shell completions (bash/zsh/fish via `umbraco completion`) documented in the README
