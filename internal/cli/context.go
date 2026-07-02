@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"crypto/tls"
 	"net/http"
 	"time"
 
@@ -21,7 +22,11 @@ type Runtime struct {
 // broken setup. The error is carried inside the client instead, so any
 // command that actually reaches for the API reports the real cause.
 func NewRuntime() *Runtime {
-	httpClient := &http.Client{Timeout: 60 * time.Second}
+	// Clone the default transport so proxy env, dial timeouts, and HTTP/2
+	// support are inherited; only the TLS floor is tightened.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	httpClient := &http.Client{Timeout: 60 * time.Second, Transport: transport}
 
 	cfg, err := config.Load()
 	if err != nil {

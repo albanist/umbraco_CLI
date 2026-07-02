@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"umbraco-cli/internal/auth"
 	"umbraco-cli/internal/config"
@@ -96,8 +98,15 @@ type APIError struct {
 	Hint       string
 }
 
+// maxErrorPayloadBytes caps the response payload rendered into error
+// messages. The full payload stays available on APIError.Payload; the cap
+// only keeps pathological error bodies (HTML error pages, huge validation
+// payloads) from flooding terminals and agent context windows.
+const maxErrorPayloadBytes = 500
+
 func (e *APIError) Error() string {
 	encoded, _ := json.Marshal(e.Payload)
+	encoded = truncatePayload(encoded, maxErrorPayloadBytes)
 	if e.Method != "" || e.Path != "" {
 		if e.Hint != "" {
 			return fmt.Sprintf("API %d %s %s: %s. Hint: %s", e.StatusCode, e.Method, e.Path, encoded, e.Hint)
@@ -108,6 +117,17 @@ func (e *APIError) Error() string {
 		return fmt.Sprintf("API %d: %s. Hint: %s", e.StatusCode, encoded, e.Hint)
 	}
 	return fmt.Sprintf("API %d: %s", e.StatusCode, encoded)
+}
+
+func truncatePayload(encoded []byte, limit int) []byte {
+	if len(encoded) <= limit {
+		return encoded
+	}
+	cut := limit
+	for cut > 0 && !utf8.RuneStart(encoded[cut]) {
+		cut--
+	}
+	return append(encoded[:cut:cut], []byte("…(truncated)")...)
 }
 
 func NewClient(cfg config.Config, httpClient *http.Client, tokenProvider *auth.Provider) *Client {
@@ -232,70 +252,88 @@ func (c *Client) RequestResult(ctx context.Context, method string, path string, 
 		encodedBody = encoded
 	}
 
-	token, err := c.tokenProvider.AccessToken(ctx)
+	resp, err := c.send(ctx, method, fullURL, "application/json", func() io.Reader {
+		if encodedBody == nil {
+			return nil
+		}
+		return bytes.NewReader(encodedBody)
+	})
 	if err != nil {
 		return ResponseResult{}, err
 	}
 
-	for attempt := 0; attempt < 4; attempt++ {
-		var reqBody io.Reader
-		if encodedBody != nil {
-			reqBody = bytes.NewReader(encodedBody)
-		}
+	result, err := parseResponse(resp)
+	if err != nil {
+		return ResponseResult{}, err
+	}
 
-		req, err := http.NewRequestWithContext(ctx, method, fullURL, reqBody)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return ResponseResult{StatusCode: resp.StatusCode, Body: result}, &APIError{
+			StatusCode: resp.StatusCode,
+			Method:     method,
+			Path:       relativePath,
+			Payload:    result,
+			Hint:       buildAPIErrorHint(resp.StatusCode, method, relativePath),
+		}
+	}
+
+	result = mergeLocationID(result, resp.Header.Get("Location"))
+	return ResponseResult{StatusCode: resp.StatusCode, Body: result}, nil
+}
+
+const maxRequestAttempts = 4
+
+// send executes an authenticated request, retrying rate limits (429) with
+// Retry-After/backoff and refreshing the token once per 401, within a fixed
+// attempt budget. makeBody must return a fresh reader per call so retries
+// never replay a consumed reader.
+func (c *Client) send(ctx context.Context, method string, fullURL string, contentType string, makeBody func() io.Reader) (*http.Response, error) {
+	token, err := c.tokenProvider.AccessToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for attempt := 0; attempt < maxRequestAttempts; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, method, fullURL, makeBody())
 		if err != nil {
-			return ResponseResult{}, err
+			return nil, err
 		}
 		req.Header.Set("Authorization", "Bearer "+token)
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Type", contentType)
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
-			return ResponseResult{}, err
+			return nil, err
 		}
 
-		if resp.StatusCode == http.StatusTooManyRequests && attempt < 3 {
+		if resp.StatusCode == http.StatusTooManyRequests && attempt < maxRequestAttempts-1 {
 			retryDelay := retryAfterDelay(resp.Header.Get("Retry-After"), attempt)
-			_, _ = io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
+			drainAndClose(resp)
 			if err := waitForRetry(ctx, retryDelay); err != nil {
-				return ResponseResult{}, err
+				return nil, err
 			}
 			continue
 		}
 
-		if resp.StatusCode == http.StatusUnauthorized && attempt < 3 && c.tokenProvider != nil {
-			_, _ = io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
+		if resp.StatusCode == http.StatusUnauthorized && attempt < maxRequestAttempts-1 && c.tokenProvider != nil {
+			drainAndClose(resp)
 			c.tokenProvider.Invalidate()
 			token, err = c.tokenProvider.AccessToken(ctx)
 			if err != nil {
-				return ResponseResult{}, err
+				return nil, err
 			}
 			continue
 		}
 
-		result, err := parseResponse(resp)
-		if err != nil {
-			return ResponseResult{}, err
-		}
-
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return ResponseResult{StatusCode: resp.StatusCode, Body: result}, &APIError{
-				StatusCode: resp.StatusCode,
-				Method:     method,
-				Path:       relativePath,
-				Payload:    result,
-				Hint:       buildAPIErrorHint(resp.StatusCode, method, relativePath),
-			}
-		}
-
-		result = mergeLocationID(result, resp.Header.Get("Location"))
-		return ResponseResult{StatusCode: resp.StatusCode, Body: result}, nil
+		return resp, nil
 	}
 
-	return ResponseResult{}, fmt.Errorf("request retry budget exhausted")
+	return nil, fmt.Errorf("request retry budget exhausted")
+}
+
+func drainAndClose(resp *http.Response) {
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
 }
 
 func (c *Client) relativeAPIPath(fullURL string) string {
@@ -390,8 +428,8 @@ func (c *Client) MultipartPost(ctx context.Context, path string, fields map[stri
 	}
 	defer file.Close()
 
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
+	var buffered bytes.Buffer
+	writer := multipart.NewWriter(&buffered)
 	for key, value := range fields {
 		if err := writer.WriteField(key, value); err != nil {
 			return nil, err
@@ -408,19 +446,12 @@ func (c *Client) MultipartPost(ctx context.Context, path string, fields map[stri
 		return nil, err
 	}
 
-	token, err := c.tokenProvider.AccessToken(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, &body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	resp, err := c.httpClient.Do(req)
+	// The form is already fully buffered in memory, so retries can replay it
+	// from a fresh reader per attempt.
+	encodedBody := buffered.Bytes()
+	resp, err := c.send(ctx, http.MethodPost, fullURL, writer.FormDataContentType(), func() io.Reader {
+		return bytes.NewReader(encodedBody)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -463,7 +494,9 @@ func retryAfterDelay(header string, attempt int) time.Duration {
 	for i := 0; i < attempt; i++ {
 		delay *= 2
 	}
-	return delay
+	// Up to half the base delay of jitter so concurrent commands rate-limited
+	// together do not retry in lockstep.
+	return delay + rand.N(delay/2)
 }
 
 func waitForRetry(ctx context.Context, delay time.Duration) error {

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- hardened the API client: media/file uploads (`MultipartPost`) now retry rate limits (429) and refresh expired tokens (401) through the same shared retry path as JSON requests instead of failing immediately; computed retry backoff gained jitter so concurrent commands rate-limited together do not retry in lockstep (server-provided `Retry-After` is still honored verbatim); API error messages cap the rendered response payload at 500 bytes with a `…(truncated)` marker so pathological error bodies cannot flood terminals or agent context windows (the full payload remains available programmatically); and the HTTP transport now enforces TLS 1.2 as a minimum version
+
 ## v0.4.6 - 2026-06-30
 
 - added `document urls <id> [<id>...]` for the Management API's batch document URL endpoint, with `--culture`, `--absolute`, clean `-o plain` URL output, message-preserving table output, non-zero exit when a requested document has no published URL, and `document get --with-urls`

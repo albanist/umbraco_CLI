@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+	"unicode/utf8"
 
 	"umbraco-cli/internal/auth"
 	"umbraco-cli/internal/config"
@@ -376,5 +380,135 @@ func TestRequestPreservesEscapedPathSegments(t *testing.T) {
 	}
 	if observedURI != "/umbraco/management/api/v1/document/..%2Fuser-group%2Fadmin" {
 		t.Fatalf("expected escaped segment to survive into the request URI, got %q", observedURI)
+	}
+}
+
+func TestMultipartPostRetriesOn429(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "logo.png")
+	if err := os.WriteFile(filePath, []byte("png-bytes"), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	uploads := 0
+	var retriedBody string
+
+	httpClient := newTestHTTPClient(func(r *http.Request) (*http.Response, error) {
+		switch r.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return jsonResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`, nil), nil
+		case "/umbraco/management/api/v1/temporary-file":
+			uploads++
+			if uploads == 1 {
+				return jsonResponse(http.StatusTooManyRequests, `{"error":"slow down"}`, map[string]string{"Retry-After": "0"}), nil
+			}
+			body, _ := io.ReadAll(r.Body)
+			retriedBody = string(body)
+			return jsonResponse(http.StatusCreated, `{"id":"tmp-1"}`, nil), nil
+		default:
+			return jsonResponse(http.StatusNotFound, `{"error":"not found"}`, nil), nil
+		}
+	})
+
+	cfg := config.Config{BaseURL: "https://example.test", ClientID: "client-id", ClientSecret: "client-secret"}
+	client := NewClient(cfg, httpClient, auth.New(cfg, httpClient))
+
+	result, err := client.MultipartPost(context.Background(), "/temporary-file", map[string]string{"Id": "tmp-1"}, "File", filePath, RequestOptions{})
+	if err != nil {
+		t.Fatalf("upload should succeed after retry: %v", err)
+	}
+	if uploads != 2 {
+		t.Fatalf("expected 2 upload requests, got %d", uploads)
+	}
+	if !strings.Contains(retriedBody, "png-bytes") {
+		t.Fatalf("retried request should replay the full multipart body, got: %q", retriedBody)
+	}
+	payload, ok := result.(map[string]any)
+	if !ok || payload["id"] != "tmp-1" {
+		t.Fatalf("unexpected upload result: %+v", result)
+	}
+}
+
+func TestMultipartPostRefreshesTokenAfter401(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "logo.png")
+	if err := os.WriteFile(filePath, []byte("png-bytes"), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	tokenRequests := 0
+	uploads := 0
+	var observedAuth string
+
+	httpClient := newTestHTTPClient(func(r *http.Request) (*http.Response, error) {
+		switch r.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			tokenRequests++
+			return jsonResponse(http.StatusOK, fmt.Sprintf(`{"access_token":"token-%d","expires_in":3600}`, tokenRequests), nil), nil
+		case "/umbraco/management/api/v1/temporary-file":
+			uploads++
+			observedAuth = r.Header.Get("Authorization")
+			if uploads == 1 {
+				return jsonResponse(http.StatusUnauthorized, `{"error":"expired token"}`, nil), nil
+			}
+			return jsonResponse(http.StatusCreated, `{"id":"tmp-1"}`, nil), nil
+		default:
+			return jsonResponse(http.StatusNotFound, `{"error":"not found"}`, nil), nil
+		}
+	})
+
+	cfg := config.Config{BaseURL: "https://example.test", ClientID: "client-id", ClientSecret: "client-secret"}
+	client := NewClient(cfg, httpClient, auth.New(cfg, httpClient))
+
+	if _, err := client.MultipartPost(context.Background(), "/temporary-file", nil, "File", filePath, RequestOptions{}); err != nil {
+		t.Fatalf("upload should succeed after token refresh: %v", err)
+	}
+	if tokenRequests != 2 {
+		t.Fatalf("expected 2 token requests, got %d", tokenRequests)
+	}
+	if uploads != 2 {
+		t.Fatalf("expected 2 upload requests, got %d", uploads)
+	}
+	if observedAuth != "Bearer token-2" {
+		t.Fatalf("expected refreshed token on second upload, got %s", observedAuth)
+	}
+}
+
+func TestAPIErrorTruncatesLargePayload(t *testing.T) {
+	err := &APIError{
+		StatusCode: 400,
+		Method:     http.MethodPost,
+		Path:       "/umbraco/management/api/v1/document",
+		Payload:    map[string]any{"detail": strings.Repeat("é", 10_000)},
+	}
+
+	message := err.Error()
+	if len(message) > maxErrorPayloadBytes+200 {
+		t.Fatalf("expected truncated error message, got %d bytes", len(message))
+	}
+	if !strings.Contains(message, "…(truncated)") {
+		t.Fatalf("expected truncation marker in message: %s", message[:100])
+	}
+	if !utf8.ValidString(message) {
+		t.Fatalf("truncation must not split a UTF-8 rune")
+	}
+
+	small := &APIError{StatusCode: 404, Payload: map[string]any{"error": "not found"}}
+	if strings.Contains(small.Error(), "truncated") {
+		t.Fatalf("small payloads must not be truncated: %s", small.Error())
+	}
+}
+
+func TestRetryAfterDelayJitterWithinBounds(t *testing.T) {
+	for attempt, base := range map[int]time.Duration{0: 200 * time.Millisecond, 2: 800 * time.Millisecond} {
+		for i := 0; i < 50; i++ {
+			delay := retryAfterDelay("", attempt)
+			if delay < base || delay >= base+base/2 {
+				t.Fatalf("attempt %d: delay %v outside [%v, %v)", attempt, delay, base, base+base/2)
+			}
+		}
+	}
+
+	// Server-provided Retry-After values are honored verbatim, no jitter.
+	if delay := retryAfterDelay("2", 0); delay != 2*time.Second {
+		t.Fatalf("expected exact Retry-After honor, got %v", delay)
 	}
 }
