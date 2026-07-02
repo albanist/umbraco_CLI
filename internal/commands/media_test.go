@@ -203,7 +203,7 @@ func TestMediaUploadCreatesTemporaryFileThenMedia(t *testing.T) {
 			if err != nil {
 				t.Fatalf("expected file form field: %v", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 			body, err := io.ReadAll(file)
 			if err != nil {
 				t.Fatalf("failed to read uploaded file: %v", err)

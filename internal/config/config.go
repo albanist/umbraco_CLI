@@ -635,7 +635,7 @@ func loadDotEnvConfig(path string) (rawConfig, error) {
 	if err != nil {
 		return rawConfig{}, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	values, err := parseDotEnv(file)
 	if err != nil {

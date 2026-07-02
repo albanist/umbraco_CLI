@@ -228,7 +228,7 @@ func TestDryRunBodySerializesConsistently(t *testing.T) {
 	if !strings.Contains(string(encoded), `"da-DK"`) {
 		t.Fatalf("expected body culture in JSON: %s", string(encoded))
 	}
-	_ = fmt.Sprintf("%s", encoded)
+	_ = string(encoded)
 }
 
 func TestRequestRetriesOn429(t *testing.T) {
@@ -361,8 +361,8 @@ func TestJoinPathEscapesArguments(t *testing.T) {
 func TestRequestPreservesEscapedPathSegments(t *testing.T) {
 	var observedURI string
 	httpClient := newTestHTTPClient(func(r *http.Request) (*http.Response, error) {
-		switch {
-		case r.URL.Path == "/umbraco/management/api/v1/security/back-office/token":
+		switch r.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
 			return jsonResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`, nil), nil
 		default:
 			observedURI = r.URL.RequestURI()

@@ -428,12 +428,16 @@ func isUUIDLike(value string) bool {
 				return false
 			}
 		default:
-			if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+			if !isHexDigit(r) {
 				return false
 			}
 		}
 	}
 	return true
+}
+
+func isHexDigit(r rune) bool {
+	return (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')
 }
 
 func resolveDefaultCulture(ctx context.Context, client *api.Client) (string, error) {

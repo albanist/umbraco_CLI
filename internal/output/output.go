@@ -214,7 +214,7 @@ func printKeyValueTable(value map[string]any, out io.Writer) error {
 	sort.Strings(keys)
 
 	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	defer tw.Flush()
+	defer func() { _ = tw.Flush() }()
 	for _, key := range keys {
 		cell, err := formatCell(value[key], maxDetailCell)
 		if err != nil {

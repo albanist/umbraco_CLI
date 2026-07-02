@@ -259,7 +259,7 @@ func executeDocumentCSVUpdate(ctx context.Context, client *api.Client, opts docu
 	if err != nil {
 		return documentCSVUpdateResult{}, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()

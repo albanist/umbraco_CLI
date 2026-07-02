@@ -192,7 +192,7 @@ func (c *Client) buildURL(path string, opts RequestOptions) (string, error) {
 }
 
 func parseResponse(resp *http.Response) (any, error) {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	contentType := resp.Header.Get("Content-Type")
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -333,7 +333,7 @@ func (c *Client) send(ctx context.Context, method string, fullURL string, conten
 
 func drainAndClose(resp *http.Response) {
 	_, _ = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 }
 
 func (c *Client) relativeAPIPath(fullURL string) string {
@@ -426,7 +426,7 @@ func (c *Client) MultipartPost(ctx context.Context, path string, fields map[stri
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var buffered bytes.Buffer
 	writer := multipart.NewWriter(&buffered)

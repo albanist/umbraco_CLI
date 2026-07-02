@@ -60,6 +60,21 @@ go build -o ./bin/umbraco ./cmd/umbraco
 ./bin/umbraco --help
 ```
 
+### Development checks
+
+CI enforces formatting, `go vet`, golangci-lint, the race detector, and a total
+test-coverage floor. Run the same checks locally before pushing:
+
+```bash
+gofmt -l .
+go vet ./...
+golangci-lint run ./...   # brew install golangci-lint
+go test -race ./...
+```
+
+The lint rules live in `.golangci.yml`; the coverage floor is set in
+`.github/workflows/ci.yml` and is ratcheted up as coverage grows.
+
 ## Configure access
 
 Set credentials via environment variables:

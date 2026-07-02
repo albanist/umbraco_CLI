@@ -107,9 +107,7 @@ func parseAPIRequestPath(raw string) (string, map[string]any, error) {
 
 	path := parsed.Path
 	const apiPrefix = "/umbraco/management/api/v1"
-	if strings.HasPrefix(path, apiPrefix) {
-		path = strings.TrimPrefix(path, apiPrefix)
-	}
+	path = strings.TrimPrefix(path, apiPrefix)
 	if path == "" {
 		path = "/"
 	}

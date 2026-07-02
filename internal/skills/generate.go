@@ -154,10 +154,10 @@ func writeIndex(baseDir string, entries []indexEntry) error {
 		if len(items) == 0 {
 			continue
 		}
-		b.WriteString(fmt.Sprintf("%s\n\n%s\n\n", sec.heading, sec.subtitle))
+		fmt.Fprintf(&b, "%s\n\n%s\n\n", sec.heading, sec.subtitle)
 		b.WriteString("| Skill | Description |\n|-------|-------------|\n")
 		for _, item := range items {
-			b.WriteString(fmt.Sprintf("| [%s](%s/SKILL.md) | %s |\n", item.Name, item.Name, item.Description))
+			fmt.Fprintf(&b, "| [%s](%s/SKILL.md) | %s |\n", item.Name, item.Name, item.Description)
 		}
 		b.WriteString("\n")
 	}
@@ -170,7 +170,7 @@ func writeIndex(baseDir string, entries []indexEntry) error {
 func renderSharedSkill(version string) string {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf(`---
+	fmt.Fprintf(&b, `---
 name: umbraco-shared
 description: "Umbraco CLI: Shared patterns for authentication, global flags, and safety rules."
 metadata:
@@ -261,7 +261,7 @@ umbraco schema datatype
 `+"```"+`
 
 Use `+"`umbraco schema`"+` output to build your `+"`--json`"+` and `+"`--params`"+` flags.
-`, version))
+`, version)
 
 	return b.String()
 }
@@ -270,7 +270,7 @@ Use `+"`umbraco schema`"+` output to build your `+"`--json`"+` and `+"`--params`
 func renderCollectionSkill(name string, cmd *cobra.Command, version string, includeHidden bool) string {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf(`---
+	fmt.Fprintf(&b, `---
 name: umbraco-%s
 description: "%s"
 metadata:
@@ -282,24 +282,24 @@ metadata:
       - umbraco-shared
 ---
 
-`, name, escapeYAML(cmd.Short), version))
+`, name, escapeYAML(cmd.Short), version)
 
-	b.WriteString(fmt.Sprintf("# %s\n\n", name))
+	fmt.Fprintf(&b, "# %s\n\n", name)
 	b.WriteString("> **PREREQUISITE:** Read `../umbraco-shared/SKILL.md` for auth, global flags, and security rules.\n\n")
 
 	if isRunnableCommand(cmd) && len(cmd.Commands()) == 0 {
 		fullUse := strings.TrimSpace(strings.TrimPrefix(cmd.Use, name))
-		b.WriteString(fmt.Sprintf("```bash\numbraco %s [flags]\n```\n\n", cmd.Use))
+		fmt.Fprintf(&b, "```bash\numbraco %s [flags]\n```\n\n", cmd.Use)
 		b.WriteString("## Command\n\n")
 		renderSubcommand(&b, name, skillCommand{Path: []string{name}, FullUse: fullUse, Command: cmd})
 		b.WriteString("## Discovering Commands\n\n")
 		b.WriteString("```bash\n")
-		b.WriteString(fmt.Sprintf("umbraco %s --help\n", name))
+		fmt.Fprintf(&b, "umbraco %s --help\n", name)
 		b.WriteString("```\n")
 		return b.String()
 	}
 
-	b.WriteString(fmt.Sprintf("```bash\numbraco %s <command> [flags]\n```\n\n", name))
+	fmt.Fprintf(&b, "```bash\numbraco %s <command> [flags]\n```\n\n", name)
 
 	// Collect leaf subcommands (recursing through subgroups like
 	// 'document version'), split into reads and mutations.
@@ -323,7 +323,7 @@ metadata:
 		b.WriteString("## Read Commands\n\n")
 		b.WriteString("| Command | Description |\n|---------|-------------|\n")
 		for _, sub := range reads {
-			b.WriteString(fmt.Sprintf("| `%s %s` | %s |\n", name, sub.FullUse, sub.Command.Short))
+			fmt.Fprintf(&b, "| `%s %s` | %s |\n", name, sub.FullUse, sub.Command.Short)
 		}
 		b.WriteString("\n")
 
@@ -338,7 +338,7 @@ metadata:
 		b.WriteString("> **Safety:** Always use `--dry-run` first. Remove the flag only after verifying the dry-run output.\n\n")
 		b.WriteString("| Command | Description |\n|---------|-------------|\n")
 		for _, sub := range mutations {
-			b.WriteString(fmt.Sprintf("| `%s %s` | %s |\n", name, sub.FullUse, sub.Command.Short))
+			fmt.Fprintf(&b, "| `%s %s` | %s |\n", name, sub.FullUse, sub.Command.Short)
 		}
 		b.WriteString("\n")
 
@@ -350,8 +350,8 @@ metadata:
 	// Discovering commands
 	b.WriteString("## Discovering Commands\n\n")
 	b.WriteString("```bash\n")
-	b.WriteString(fmt.Sprintf("# Browse subcommands\numbraco %s --help\n\n", name))
-	b.WriteString(fmt.Sprintf("# Inspect a specific endpoint schema\numbraco schema %s.<method>\n", name))
+	fmt.Fprintf(&b, "# Browse subcommands\numbraco %s --help\n\n", name)
+	fmt.Fprintf(&b, "# Inspect a specific endpoint schema\numbraco schema %s.<method>\n", name)
 	b.WriteString("```\n")
 
 	return b.String()
@@ -400,9 +400,9 @@ func isRunnableCommand(cmd *cobra.Command) bool {
 }
 
 func renderSubcommand(b *strings.Builder, collection string, sub skillCommand) {
-	b.WriteString(fmt.Sprintf("### %s\n\n", strings.Join(sub.Path, " ")))
+	fmt.Fprintf(b, "### %s\n\n", strings.Join(sub.Path, " "))
 
-	b.WriteString(fmt.Sprintf("```bash\numbraco %s %s\n```\n\n", collection, sub.FullUse))
+	fmt.Fprintf(b, "```bash\numbraco %s %s\n```\n\n", collection, sub.FullUse)
 
 	// Long help text (caveats, API limitations, etc.) — agents reading the
 	// generated SKILL.md should see the same warnings a human gets from
@@ -418,7 +418,7 @@ func renderSubcommand(b *strings.Builder, collection string, sub skillCommand) {
 	if len(flags) > 0 {
 		b.WriteString("| Flag | Type | Default | Description |\n|------|------|---------|-------------|\n")
 		for _, f := range flags {
-			b.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s |\n", f.Name, f.Type, f.Default, f.Description))
+			fmt.Fprintf(b, "| `%s` | %s | %s | %s |\n", f.Name, f.Type, f.Default, f.Description)
 		}
 		b.WriteString("\n")
 	}
@@ -426,8 +426,8 @@ func renderSubcommand(b *strings.Builder, collection string, sub skillCommand) {
 	// Safety note for mutations
 	if isMutationCommand(sub.Command) {
 		b.WriteString("**Safe pattern:**\n\n")
-		b.WriteString(fmt.Sprintf("```bash\n# 1. Dry run first\numbraco %s %s --dry-run\n\n", collection, sub.FullUse))
-		b.WriteString(fmt.Sprintf("# 2. Execute\numbraco %s %s\n```\n\n", collection, sub.FullUse))
+		fmt.Fprintf(b, "```bash\n# 1. Dry run first\numbraco %s %s --dry-run\n\n", collection, sub.FullUse)
+		fmt.Fprintf(b, "# 2. Execute\numbraco %s %s\n```\n\n", collection, sub.FullUse)
 	}
 }
 
