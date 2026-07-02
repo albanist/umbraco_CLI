@@ -175,3 +175,33 @@ func findNearestFileFromCandidates(workingDir string, candidates ...string) (str
 		dir = parent
 	}
 }
+
+// userConfigSource loads ~/.umbraco/config.json; a missing file or home
+// directory is not an error, just an empty source.
+func userConfigSource(homeDir string) (rawConfig, error) {
+	if homeDir == "" {
+		return rawConfig{}, nil
+	}
+	raw, _, err := loadJSONConfig(filepath.Join(homeDir, ".umbraco", "config.json"))
+	return raw, err
+}
+
+// dotEnvSource loads UMBRACO_* keys from the nearest dotenv file with the
+// given name, walking upward from the working directory.
+func dotEnvSource(workingDir string, name string) (rawConfig, error) {
+	path, ok := findNearestFile(workingDir, name)
+	if !ok {
+		return rawConfig{}, nil
+	}
+	return loadDotEnvConfig(path)
+}
+
+// projectRCSource loads the nearest .umbracorc.json or .umbracorc.
+func projectRCSource(workingDir string) (rawConfig, error) {
+	path, ok := findNearestFileFromCandidates(workingDir, ".umbracorc.json", ".umbracorc")
+	if !ok {
+		return rawConfig{}, nil
+	}
+	raw, _, err := loadJSONConfig(path)
+	return raw, err
+}

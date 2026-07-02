@@ -98,44 +98,35 @@ func loadResolvedConfigWithOptions(workingDir string, homeDir string, env map[st
 	return loadResolvedConfig(workingDir, homeDir, env)
 }
 
+// loadResolvedConfig merges configuration sources lowest precedence first,
+// so later sources override earlier ones. The order (low to high) is the
+// README's documented precedence, inverted:
+//
+//  1. user config ~/.umbraco/config.json
+//  2. project .env
+//  3. project .umbraco-cli.env
+//  4. project .umbracorc.json / .umbracorc
+//  5. process env (UMBRACO_*)
+//
+// A .NET host-project scan supplies the base URL only when no source above
+// set one.
 func loadResolvedConfig(workingDir string, homeDir string, env map[string]string) (Config, error) {
+	sources := []func() (rawConfig, error){
+		func() (rawConfig, error) { return userConfigSource(homeDir) },
+		func() (rawConfig, error) { return dotEnvSource(workingDir, ".env") },
+		func() (rawConfig, error) { return dotEnvSource(workingDir, ".umbraco-cli.env") },
+		func() (rawConfig, error) { return projectRCSource(workingDir) },
+		func() (rawConfig, error) { return rawConfigFromEnv(env), nil },
+	}
+
 	resolved := rawConfig{}
-
-	if homeDir != "" {
-		userConfig, ok, err := loadJSONConfig(filepath.Join(homeDir, ".umbraco", "config.json"))
+	for _, source := range sources {
+		loaded, err := source()
 		if err != nil {
 			return Config{}, err
 		}
-		if ok {
-			mergeRawConfig(&resolved, userConfig)
-		}
+		mergeRawConfig(&resolved, loaded)
 	}
-
-	if dotEnvPath, ok := findNearestFile(workingDir, ".env"); ok {
-		dotEnvConfig, err := loadDotEnvConfig(dotEnvPath)
-		if err != nil {
-			return Config{}, err
-		}
-		mergeRawConfig(&resolved, dotEnvConfig)
-	}
-
-	if cliDotEnvPath, ok := findNearestFile(workingDir, ".umbraco-cli.env"); ok {
-		cliDotEnvConfig, err := loadDotEnvConfig(cliDotEnvPath)
-		if err != nil {
-			return Config{}, err
-		}
-		mergeRawConfig(&resolved, cliDotEnvConfig)
-	}
-
-	if projectConfigPath, ok := findNearestFileFromCandidates(workingDir, ".umbracorc.json", ".umbracorc"); ok {
-		projectConfig, _, err := loadJSONConfig(projectConfigPath)
-		if err != nil {
-			return Config{}, err
-		}
-		mergeRawConfig(&resolved, projectConfig)
-	}
-
-	mergeRawConfig(&resolved, rawConfigFromEnv(env))
 
 	// Crawling the working tree for a .NET host project is expensive, so it
 	// only runs when no explicit source supplied a base URL. Discovery is
