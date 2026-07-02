@@ -59,7 +59,7 @@ jobs:
       - name: Enforce coverage floor
         run: |
           total=$(go tool cover -func=coverage.out | tail -1 | awk '{sub("%", "", $NF); print $NF}')
-          floor=74.0
+          floor=74.5
           echo "total coverage: ${total}% (floor: ${floor}%)"
           if ! awk -v total="$total" -v floor="$floor" 'BEGIN { exit (total >= floor) ? 0 : 1 }'; then
             echo "coverage ${total}% is below the ${floor}% floor" >&2
