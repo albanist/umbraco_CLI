@@ -83,14 +83,6 @@ jobs:
           go run ./cmd/umbraco generate-skills --output-dir skills/cli
           git diff --exit-code skills/cli
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Verify skills bundle
-        run: npm run verify:skills
-
       - name: Validate GoReleaser config
         uses: goreleaser/goreleaser-action@v6
         with:

@@ -11,8 +11,7 @@ import (
 )
 
 // CLIVersion identifies the published umbraco-cli release. It is sourced from the embedded
-// internal/version/VERSION file so a single edit (plus `npm run sync:version`) propagates
-// everywhere.
+// internal/version/VERSION file so a single edit propagates everywhere.
 var CLIVersion = version.Current()
 
 func RegisterGenerateSkills(root *cobra.Command, deps Dependencies) {

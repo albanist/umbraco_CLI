@@ -12,7 +12,6 @@ Core behavior:
 ## Requirements
 
 - Go `1.26+`
-- Node.js `20+` (only needed for skills verification scripts)
 - Access to an Umbraco instance with Management API credentials
 
 ## Install
@@ -302,42 +301,29 @@ umbraco user permissions --ids <node-id> --type document
 umbraco user client-credentials create <user-id> --client-id umbraco-back-office-ci --client-secret <secret> --dry-run
 ```
 
-## Skills Bundle
+## CLI Skills
 
-This repo ships two sets of SKILL.md files under `skills/`:
-
-- **67 bundled Umbraco extension-development skills** (`skills/foundation/`, `skills/backend/`, `skills/extensions/`, `skills/property-editors/`, `skills/rich-text/`, `skills/testing/`) — copied from `.agents/skills/` by `npm run bundle:skills`.
-- **26 CLI command skills** (`skills/cli/`) — generated from the cobra command tree by `umbraco generate-skills`.
-
-Verify both sets are present and consistent with the package version:
-
-```bash
-npm run verify:skills
-```
-
-**Heads-up for Homebrew users:** the cask currently installs only the `umbraco`
-binary. The bundled skills are not extracted to disk by `brew install`. To use
-them with an agent harness — Claude Code, Codex CLI, Cursor, or any other tool
-that reads SKILL.md files — clone this repo and point the harness at the local
-`skills/` tree (each harness has its own conventional location, e.g.
-`~/.claude/skills/`, `~/.codex/skills/`, project-local `.claude/skills/`):
+`skills/cli/` holds SKILL.md files generated from the cobra command tree by
+`umbraco generate-skills`; CI fails if they drift from the code. Point an
+agent harness (Claude Code, Codex CLI, Cursor, or anything that reads
+SKILL.md files) at that directory, or regenerate them anywhere with an
+installed binary:
 
 ```bash
-git clone https://github.com/albanistrefi/umbraco_CLI.git
-# then configure your agent harness with the cloned skills/ path
+umbraco generate-skills --output-dir .claude/skills   # or .agents/skills, etc.
 ```
 
-An `umbraco skills install --target <dir>` command that extracts the bundled
-skills into whichever harness directory you point it at is on the roadmap.
+An `umbraco skills install --target <dir>` convenience command is on the
+roadmap. Umbraco extension-development skills (backoffice, property editors,
+testing) are not part of this repo — get those from
+`umbraco/Umbraco-CMS-Backoffice-Skills`.
 
 ## Project Commands
 
 - `go test ./...` - run tests
 - `go build ./...` - build all packages
 - `go run ./cmd/umbraco ...` - run CLI
-- `npm run bundle:skills` - copy curated extension-development skills from `.agents/skills/` into `skills/`
-- `npm run verify:skills` - verify skills count, structure, and version parity
-- `npm run sync:version` - propagate `internal/version/VERSION` into `package.json` / `package-lock.json`
+- `go run ./cmd/umbraco generate-skills` - regenerate `skills/cli/` after command changes
 
 ## Collections
 
