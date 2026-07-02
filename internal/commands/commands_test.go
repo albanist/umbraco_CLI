@@ -100,8 +100,8 @@ func TestCommandCountsMatchMVP(t *testing.T) {
 		total += len(found.Commands())
 	}
 
-	if total != 175 {
-		t.Fatalf("expected 175 collection commands, got %d", total)
+	if total != 177 {
+		t.Fatalf("expected 177 collection commands, got %d", total)
 	}
 }
 
@@ -194,6 +194,8 @@ func TestRegisteredAPICommandsHaveSchemas(t *testing.T) {
 		"document.domains":          "culture domains subgroup (get/set)",
 		"document.public-access":    "member protection subgroup (get/set/remove)",
 		"user.client-credentials":   "OAuth credential subgroup (list/create/delete)",
+		"document.bin":              "recycle bin subgroup (list/children/original-parent/delete/empty)",
+		"media.bin":                 "recycle bin subgroup (list/children/original-parent/delete/empty)",
 	}
 
 	missing := make([]string, 0)

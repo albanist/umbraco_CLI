@@ -31,6 +31,7 @@ func RegisterMedia(root *cobra.Command, deps Dependencies) {
 	media.AddCommand(mediaReferences(deps))
 	media.AddCommand(mediaReferencedDescendants(deps))
 	media.AddCommand(mediaAreReferenced(deps))
+	media.AddCommand(recycleBinCommand(deps, "media"))
 
 	root.AddCommand(media)
 }

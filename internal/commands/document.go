@@ -47,6 +47,7 @@ func RegisterDocument(root *cobra.Command, deps Dependencies) {
 	document.AddCommand(documentReferences(deps))
 	document.AddCommand(documentReferencedDescendants(deps))
 	document.AddCommand(documentAreReferenced(deps))
+	document.AddCommand(recycleBinCommand(deps, "document"))
 	document.AddCommand(documentVersion(deps))
 	document.AddCommand(documentAuditLog(deps))
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- added recycle bin subgroups `document bin` and `media bin` completing the trash lifecycle: `list` (paginated bin root), `children <id>` (descend trashed subtrees), `original-parent <id>` (the default restore target), `delete <id>` (permanently delete one trashed item, gated), and `empty` (destroy everything in the bin, gated behind `--force`/`--dry-run`)
+
 - added `indexer` command group for Examine search indexes: `list` (paginated, health status and document counts), `get <index-name>`, and `rebuild <index-name>` (gated behind `--force`/`--dry-run`, with `--wait`/`--timeout`/`--poll-interval` to block until the index leaves Rebuilding) — the standard fix path for missing or stale search results
 
 - added `redirect` command group for the redirect URL tracker: `list` (paginated, `--filter` URL substring), `get <document-id>` (redirects recorded for one document), `delete` (gated behind `--force`/`--dry-run`), `status`, and `enable`/`disable` toggles; all commands schema-introspectable and verified live against a local instance
