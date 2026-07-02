@@ -130,6 +130,10 @@ func truncatePayload(encoded []byte, limit int) []byte {
 	return append(encoded[:cut:cut], []byte("…(truncated)")...)
 }
 
+// ExitCode marks API error responses for the CLI's documented exit-code
+// contract (4 = the Management API answered with an error status).
+func (e *APIError) ExitCode() int { return 4 }
+
 func NewClient(cfg config.Config, httpClient *http.Client, tokenProvider *auth.Provider) *Client {
 	return &Client{cfg: cfg, httpClient: httpClient, tokenProvider: tokenProvider}
 }

@@ -75,6 +75,33 @@ go test -race ./...
 The lint rules live in `.golangci.yml`; the coverage floor is set in
 `.github/workflows/ci.yml` and is ratcheted up as coverage grows.
 
+## Shell completions
+
+Cobra-generated completions ship built in:
+
+```bash
+umbraco completion zsh > "${fpath[1]}/_umbraco"   # zsh
+umbraco completion bash > /usr/local/etc/bash_completion.d/umbraco
+umbraco completion fish > ~/.config/fish/completions/umbraco.fish
+```
+
+Run `umbraco completion <shell> --help` for shell-specific install notes.
+
+## Exit codes
+
+Scripts and CI gates can rely on the exit code to tell failure classes apart:
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Usage or local error (invalid flags, bad payloads, missing files) |
+| 2 | `schema diff` ran cleanly and found differences (suppress with `--exit-zero`) |
+| 3 | Authentication or credential failure (fix credentials/base URL, not the command) |
+| 4 | The Management API answered with an error status (4xx/5xx) |
+
+JSON output is the stable machine contract — only additive changes. Table
+output is unstable and may reorder columns between releases.
+
 ## Configure access
 
 Set credentials via environment variables:

@@ -14,6 +14,27 @@ import (
 	"umbraco-cli/internal/config"
 )
 
+// Error marks authentication and credential failures so the CLI can exit
+// with a distinct code (3) — scripts can tell "fix your credentials" apart
+// from API or usage errors.
+type Error struct {
+	Err error
+}
+
+func (e *Error) Error() string { return e.Err.Error() }
+
+func (e *Error) Unwrap() error { return e.Err }
+
+// ExitCode implements the CLI's documented exit-code contract.
+func (e *Error) ExitCode() int { return 3 }
+
+func authErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &Error{Err: err}
+}
+
 type tokenResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int64  `json:"expires_in"`
@@ -48,7 +69,7 @@ func (p *Provider) AccessToken(ctx context.Context) (string, error) {
 	p.mu.Unlock()
 
 	if err := p.cfg.ValidateAuth(); err != nil {
-		return "", err
+		return "", authErr(err)
 	}
 
 	values := url.Values{}
@@ -65,21 +86,21 @@ func (p *Provider) AccessToken(ctx context.Context) (string, error) {
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("auth request to %s failed (resolved base URL %s): %w", endpoint, p.cfg.BaseURL, err)
+		return "", authErr(fmt.Errorf("auth request to %s failed (resolved base URL %s): %w", endpoint, p.cfg.BaseURL, err))
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("auth failed for %s (resolved base URL %s): %d %s", endpoint, p.cfg.BaseURL, resp.StatusCode, string(body))
+		return "", authErr(fmt.Errorf("auth failed for %s (resolved base URL %s): %d %s", endpoint, p.cfg.BaseURL, resp.StatusCode, string(body)))
 	}
 
 	var payload tokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return "", err
+		return "", authErr(fmt.Errorf("auth token response from %s is not valid JSON: %w", endpoint, err))
 	}
 	if payload.AccessToken == "" || payload.ExpiresIn <= 0 {
-		return "", fmt.Errorf("auth failed: token response missing required fields")
+		return "", authErr(fmt.Errorf("auth failed: token response missing required fields"))
 	}
 
 	expiresAt := time.Now().Add(time.Duration(payload.ExpiresIn)*time.Second - time.Minute)

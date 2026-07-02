@@ -21,6 +21,11 @@ func (schemaDiffFoundError) Error() string {
 	return "schema differences found"
 }
 
+// ExitCode implements the CLI's documented exit-code contract: 2 means the
+// comparison ran cleanly and found real differences, so CI gates can tell
+// "schemas diverged" apart from "the check itself failed".
+func (schemaDiffFoundError) ExitCode() int { return 2 }
+
 func schemaDiffCommand(deps Dependencies) *cobra.Command {
 	var entityRaw string
 	var include []string
