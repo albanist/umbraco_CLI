@@ -73,12 +73,18 @@ func indexerRebuild(deps Dependencies) *cobra.Command {
 					return fmt.Errorf("polling index after rebuild failed: %w", err)
 				}
 				status := indexerHealthStatus(indexPayload)
-				if status != "" && !strings.EqualFold(status, "Rebuilding") {
+				if strings.EqualFold(status, "Healthy") {
 					return printResult(cmd, deps, map[string]any{
 						"rebuilt": true,
 						"status":  status,
 						"waited":  time.Since(deadline.Add(-timeout)).String(),
 					})
+				}
+				// Corrupt/Unhealthy are terminal: the rebuild finished but
+				// search is still broken, so exiting 0 would let automation
+				// proceed on a bad index. Only Rebuilding is worth waiting on.
+				if status != "" && !strings.EqualFold(status, "Rebuilding") {
+					return fmt.Errorf("index %s finished rebuilding in status %s — search is still broken; check 'indexer get %s' and the server logs", args[0], status, args[0])
 				}
 				if time.Now().After(deadline) {
 					return fmt.Errorf("index %s did not leave Rebuilding within %s (last status: %s); try increasing --timeout or check 'indexer get %s'", args[0], timeout, status, args[0])

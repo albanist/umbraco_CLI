@@ -142,3 +142,22 @@ func TestIndexerHealthStatusToleratesLegacyStringShape(t *testing.T) {
 		t.Fatalf("expected empty status for non-object payload, got %q", got)
 	}
 }
+
+func TestIndexerRebuildWaitFailsOnCorruptTerminalState(t *testing.T) {
+	statusRequests := 0
+	deps := indexerDeps(func(req *http.Request) (*http.Response, error) {
+		if strings.HasSuffix(req.URL.Path, "/rebuild") {
+			return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
+		}
+		statusRequests++
+		if statusRequests == 1 {
+			return endpointJSONResponse(http.StatusOK, `{"name":"ExternalIndex","healthStatus":{"status":"Rebuilding"}}`), nil
+		}
+		return endpointJSONResponse(http.StatusOK, `{"name":"ExternalIndex","healthStatus":{"status":"Corrupt"}}`), nil
+	})
+
+	_, err := execute(buildIndexerRoot(deps), "indexer", "rebuild", "ExternalIndex", "--force", "--wait", "--poll-interval", "1ms", "--timeout", "5s")
+	if err == nil || !strings.Contains(err.Error(), "status Corrupt") {
+		t.Fatalf("expected corrupt terminal state to fail, got %v", err)
+	}
+}
