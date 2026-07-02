@@ -264,6 +264,12 @@ var endpointBindings = map[string]endpointBinding{
 	"health.run":    {Manual: &rawSchema{Method: "GET", Path: "/health-check-group/{name}/run", PathParams: map[string]ParamSchema{"name": {Type: "string", Required: true}}, Response: &ObjectSchema{Type: "object", Description: "Version-dependent: newer servers expose POST /health-check-group/{name}/check instead"}}},
 	"health.action": {Manual: &rawSchema{Method: "POST", Path: "/health-check/{actionId}", PathParams: map[string]ParamSchema{"actionId": {Type: "string", Required: true}}, Response: &ObjectSchema{Type: "object", Description: "Version-dependent: newer servers expose POST /health-check/execute-action instead"}}},
 
+	// published-cache — the CLI's status command falls back to the legacy
+	// /published-cache/status route on older servers.
+	"published-cache.status":  {Method: "GET", Path: "/published-cache/rebuild/status"},
+	"published-cache.rebuild": {Method: "POST", Path: "/published-cache/rebuild"},
+	"published-cache.reload":  {Method: "POST", Path: "/published-cache/reload"},
+
 	// webhook
 	"webhook.list":   {Method: "GET", Path: "/webhook"},
 	"webhook.get":    {Method: "GET", Path: "/webhook/{id}"},
