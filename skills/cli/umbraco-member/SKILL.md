@@ -128,7 +128,7 @@ umbraco member delete <id>
 umbraco member delete <id> --dry-run
 
 # 2. Execute
-umbraco member delete <id>
+umbraco member delete <id> --force
 ```
 
 ### set-groups

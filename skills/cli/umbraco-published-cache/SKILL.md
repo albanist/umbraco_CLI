@@ -59,7 +59,7 @@ POST /published-cache/rebuild. Rebuilds the published content cache from the dat
 umbraco published-cache rebuild --dry-run
 
 # 2. Execute
-umbraco published-cache rebuild
+umbraco published-cache rebuild --force
 ```
 
 ### reload

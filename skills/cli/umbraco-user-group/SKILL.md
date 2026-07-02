@@ -128,7 +128,7 @@ umbraco user-group delete <id>
 umbraco user-group delete <id> --dry-run
 
 # 2. Execute
-umbraco user-group delete <id>
+umbraco user-group delete <id> --force
 ```
 
 ### remove-users

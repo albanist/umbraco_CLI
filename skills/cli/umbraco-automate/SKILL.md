@@ -480,7 +480,7 @@ umbraco automate automation delete <id>
 umbraco automate automation delete <id> --dry-run
 
 # 2. Execute
-umbraco automate automation delete <id>
+umbraco automate automation delete <id> --force
 ```
 
 ### automation import
@@ -680,7 +680,7 @@ umbraco automate connection delete <id>
 umbraco automate connection delete <id> --dry-run
 
 # 2. Execute
-umbraco automate connection delete <id>
+umbraco automate connection delete <id> --force
 ```
 
 ### connection test
@@ -869,7 +869,7 @@ umbraco automate workspace delete <id>
 umbraco automate workspace delete <id> --dry-run
 
 # 2. Execute
-umbraco automate workspace delete <id>
+umbraco automate workspace delete <id> --force
 ```
 
 ### workspace group add
@@ -912,7 +912,7 @@ umbraco automate workspace group remove <workspace-id> <group-id>
 umbraco automate workspace group remove <workspace-id> <group-id> --dry-run
 
 # 2. Execute
-umbraco automate workspace group remove <workspace-id> <group-id>
+umbraco automate workspace group remove <workspace-id> <group-id> --force
 ```
 
 ### workspace group update
