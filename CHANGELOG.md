@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- consolidated the command layer: a new `createCommand` builder replaces seven near-identical create implementations (document, media, member, user, invite, doctype, datatype) so the create contract cannot drift per resource; destructive-command gating collapses into one `requireForceOrDryRun` helper with canonical wording; `member list`/`member search` now use the standard pagination flags and sentinel; oversized files split by concern (`logs.go` 850→152 lines plus query/output helpers, `document.go` gains dedicated publish and bulk files); command conventions documented in `internal/commands/CONVENTIONS.md`
+
 - decomposed the 1,000-line config package internals for maintainability: profile management, source loaders, and user-config writing now live in dedicated files, .NET host-project discovery moved to a new `internal/dotnet` package, and the documented config precedence is expressed as an explicit ordered source list in code; behavior is unchanged (all existing tests pass unmodified) while config test coverage rose from 65% to 84% and discovery gained its own fixture suite (93%); CI coverage floor ratcheted 74.5% -> 76%
 
 - added CI quality gates: golangci-lint (errcheck, staticcheck, govet, unused, ineffassign, misspell, unconvert) now runs on every push/PR with all existing findings fixed, and total test coverage is enforced against a floor (74.5%) that ratchets up as coverage grows; auth token provider coverage rose from 52% to 97% (caching, expiry margin, malformed responses) and the health command group from 41% to 86%
