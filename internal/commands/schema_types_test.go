@@ -164,3 +164,33 @@ func TestSchemaTypeSearchUsesItemEndpoint(t *testing.T) {
 		t.Fatalf("unexpected request URI %q", requestedURI)
 	}
 }
+
+func TestSchemaTypeMergeUpdateStripsReadOnlyFields(t *testing.T) {
+	var putBody string
+	deps := schemaTypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.Method {
+		case http.MethodGet:
+			return endpointJSONResponse(http.StatusOK, `{"id":"mt-1","name":"Image","alias":"image","isDeletable":false,"aliasCanBeChanged":true,"allowedAsRoot":true}`), nil
+		case http.MethodPut:
+			body, _ := io.ReadAll(req.Body)
+			putBody = string(body)
+			return endpointJSONResponse(http.StatusOK, `{}`), nil
+		default:
+			return endpointJSONResponse(http.StatusNotFound, `{"error":"not found"}`), nil
+		}
+	})
+
+	if _, err := execute(buildSchemaTypeRoot(deps), "mediatype", "update", "mt-1", "--merge-json", `{"name":"Image v2"}`); err != nil {
+		t.Fatalf("mediatype merge update failed: %v", err)
+	}
+	// The update request model rejects response-only fields
+	// (additionalProperties: false), so the merged PUT must not echo them.
+	for _, rejected := range []string{`"id"`, `"isDeletable"`, `"aliasCanBeChanged"`} {
+		if strings.Contains(putBody, rejected) {
+			t.Fatalf("expected %s stripped from merged PUT body, got %s", rejected, putBody)
+		}
+	}
+	if !strings.Contains(putBody, `"Image v2"`) || !strings.Contains(putBody, `"allowedAsRoot":true`) {
+		t.Fatalf("expected merged fields preserved, got %s", putBody)
+	}
+}

@@ -18,14 +18,24 @@ type schemaTypeSpec struct {
 	Use      string // command group name, e.g. "mediatype"
 	Resource string // API resource segment, e.g. "media-type"
 	Display  string // human name used in help text, e.g. "media type"
+	// UpdateStripFields lists response-only keys the update request model
+	// rejects (additionalProperties: false); they are stripped from the
+	// merged body before the PUT.
+	UpdateStripFields []string
 }
 
 func RegisterMediaType(root *cobra.Command, deps Dependencies) {
-	registerSchemaTypeGroup(root, deps, schemaTypeSpec{Use: "mediatype", Resource: "media-type", Display: "media type"})
+	registerSchemaTypeGroup(root, deps, schemaTypeSpec{
+		Use: "mediatype", Resource: "media-type", Display: "media type",
+		UpdateStripFields: []string{"id", "isDeletable", "aliasCanBeChanged"},
+	})
 }
 
 func RegisterMemberType(root *cobra.Command, deps Dependencies) {
-	registerSchemaTypeGroup(root, deps, schemaTypeSpec{Use: "membertype", Resource: "member-type", Display: "member type"})
+	registerSchemaTypeGroup(root, deps, schemaTypeSpec{
+		Use: "membertype", Resource: "member-type", Display: "member type",
+		UpdateStripFields: []string{"id"},
+	})
 }
 
 func registerSchemaTypeGroup(root *cobra.Command, deps Dependencies, spec schemaTypeSpec) {
@@ -63,6 +73,7 @@ func registerSchemaTypeGroup(root *cobra.Command, deps Dependencies, spec schema
 		Path: func(args []string) string {
 			return api.JoinPath("/"+spec.Resource+"/%s", args[0])
 		},
+		NormalizeMerged: stripFields(spec.UpdateStripFields...),
 	}))
 	group.AddCommand(deleteCommand(deps, deleteSpec{
 		Use:   "delete <id>",
