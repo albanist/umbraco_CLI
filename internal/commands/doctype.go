@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -41,7 +40,7 @@ func doctypeGet(deps Dependencies) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := deps.Client.Get(cmd.Context(), api.JoinPath("/document-type/%s", args[0]), api.RequestOptions{Fields: fields})
 			if err != nil {
-				if isDocumentTypeFolderID(cmd.Context(), deps.Client, args[0]) {
+				if isSchemaTypeFolderID(cmd.Context(), deps.Client, "document-type", args[0]) {
 					return fmt.Errorf("document type id %s is a folder, not a document type; use `umbraco doctype children %s` or `umbraco doctype list --recursive --types-only`", args[0], args[0])
 				}
 				return err
@@ -97,7 +96,7 @@ func doctypeList(deps Dependencies) *cobra.Command {
 			}
 
 			if recursive {
-				items, err := flattenDoctypeTree(ctx, deps.Client, resultItems(result), take, filterFolders, triage.FirstN)
+				items, err := flattenSchemaTypeTree(ctx, deps.Client, "document-type", resultItems(result), take, filterFolders, triage.FirstN)
 				if err != nil {
 					return err
 				}
@@ -108,7 +107,7 @@ func doctypeList(deps Dependencies) *cobra.Command {
 					"typesOnly": filterFolders,
 				}
 			} else if filterFolders {
-				result = filterDoctypeFolders(result)
+				result = filterSchemaTypeFolders(result)
 			}
 
 			return printResult(cmd, deps, applyReadTriage(applyFieldsProjection(result, fields), triage))
@@ -163,114 +162,6 @@ func doctypeSearch(deps Dependencies) *cobra.Command {
 			}
 		},
 	})
-}
-
-func flattenDoctypeTree(ctx context.Context, client *api.Client, items []any, pageSize int, excludeFolders bool, limit int) ([]any, error) {
-	flattened := make([]any, 0, len(items))
-	seenFolders := map[string]struct{}{}
-	if err := appendDoctypeTreeItems(ctx, client, &flattened, items, pageSize, excludeFolders, limit, seenFolders); err != nil {
-		return nil, err
-	}
-	return flattened, nil
-}
-
-func appendDoctypeTreeItems(ctx context.Context, client *api.Client, flattened *[]any, items []any, pageSize int, excludeFolders bool, limit int, seenFolders map[string]struct{}) error {
-	for _, item := range items {
-		if doctypeLimitReached(flattened, limit) {
-			return nil
-		}
-		folder := isDoctypeFolderItem(item)
-		if !folder || !excludeFolders {
-			*flattened = append(*flattened, item)
-			if doctypeLimitReached(flattened, limit) {
-				return nil
-			}
-		}
-		if !folder {
-			continue
-		}
-		id := itemID(item)
-		if id == "" {
-			continue
-		}
-		if _, seen := seenFolders[id]; seen {
-			continue
-		}
-		seenFolders[id] = struct{}{}
-		childLimit := 0
-		if !excludeFolders && limit > 0 {
-			childLimit = limit - len(*flattened)
-		}
-		children, err := fetchDoctypeFolderChildren(ctx, client, id, pageSize, childLimit)
-		if err != nil {
-			return err
-		}
-		if err := appendDoctypeTreeItems(ctx, client, flattened, children, pageSize, excludeFolders, limit, seenFolders); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func doctypeLimitReached(items *[]any, limit int) bool {
-	return limit > 0 && len(*items) >= limit
-}
-
-func fetchDoctypeFolderChildren(ctx context.Context, client *api.Client, folderID string, pageSize int, limit int) ([]any, error) {
-	result, err := getAllPagesWithFallback(ctx, client, pageSize, 0, limit,
-		getRequestCandidate{path: "/tree/document-type/children", opts: api.RequestOptions{Params: map[string]any{"parentId": folderID}}},
-		getRequestCandidate{path: api.JoinPath("/document-type/%s/children", folderID)},
-	)
-	if err != nil {
-		return nil, err
-	}
-	return resultItems(result), nil
-}
-
-func filterDoctypeFolders(result any) any {
-	items := resultItems(result)
-	filtered := make([]any, 0, len(items))
-	for _, item := range items {
-		if !isDoctypeFolderItem(item) {
-			filtered = append(filtered, item)
-		}
-	}
-	if payload, ok := result.(map[string]any); ok {
-		next := cloneAnyMap(payload)
-		next["items"] = filtered
-		next["total"] = len(filtered)
-		next["typesOnly"] = true
-		return next
-	}
-	return filtered
-}
-
-func isDocumentTypeFolderID(ctx context.Context, client *api.Client, id string) bool {
-	result, err := client.Get(ctx, "/tree/document-type/children", api.RequestOptions{Params: map[string]any{"parentId": id}})
-	if err != nil {
-		return false
-	}
-	_, ok := result.(map[string]any)
-	return ok
-}
-
-func isDoctypeFolderItem(item any) bool {
-	entry, ok := item.(map[string]any)
-	if !ok {
-		return false
-	}
-	for _, key := range []string{"isFolder", "isContainer"} {
-		if value, ok := entry[key].(bool); ok && value {
-			return true
-		}
-	}
-	for _, key := range []string{"type", "nodeType", "kind", "entityType"} {
-		if value, ok := entry[key].(string); ok && strings.EqualFold(strings.TrimSpace(value), "folder") {
-			return true
-		}
-	}
-	alias, hasAlias := entry["alias"].(string)
-	return !hasAlias || strings.TrimSpace(alias) == ""
 }
 
 func itemID(item any) string {

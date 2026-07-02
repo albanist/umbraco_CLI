@@ -135,7 +135,7 @@ func fetchSchemaDiffDoctypes(ctx context.Context, client *api.Client) ([]map[str
 	if err != nil {
 		return nil, err
 	}
-	items, err := flattenDoctypeTree(ctx, client, resultItems(root), autoPaginateDefaultPageSize, true, 0)
+	items, err := flattenSchemaTypeTree(ctx, client, "document-type", resultItems(root), autoPaginateDefaultPageSize, true, 0)
 	if err != nil {
 		return nil, err
 	}
