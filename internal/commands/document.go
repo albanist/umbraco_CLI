@@ -321,8 +321,8 @@ func documentBulkUpdate(deps Dependencies) *cobra.Command {
 		Use:   "bulk-update",
 		Short: "Update multiple documents from an explicit ID list",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !dryRun && !force {
-				return fmt.Errorf("document bulk-update requires --dry-run or --force")
+			if err := requireForceOrDryRun(cmd, "mutates every listed document", force, dryRun); err != nil {
+				return err
 			}
 
 			hasJSON := strings.TrimSpace(jsonPayload) != ""
@@ -379,8 +379,8 @@ func documentCSVUpdate(deps Dependencies) *cobra.Command {
 		Use:   "csv-update",
 		Short: "Update multiple documents from a CSV file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !dryRun && !force {
-				return fmt.Errorf("document csv-update requires --dry-run or --force")
+			if err := requireForceOrDryRun(cmd, "mutates every document in the CSV", force, dryRun); err != nil {
+				return err
 			}
 			if err := requireValue("--file", file); err != nil {
 				return err

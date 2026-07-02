@@ -268,8 +268,8 @@ func userClientCredentialsDelete(deps Dependencies) *cobra.Command {
 		Short: "Remove a client ID from an API user (revokes its access)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !force && !dryRun {
-				return fmt.Errorf("user client-credentials delete revokes API access; pass --force to confirm or --dry-run to rehearse")
+			if err := requireForceOrDryRun(cmd, "revokes API access", force, dryRun); err != nil {
+				return err
 			}
 			result, err := deps.Client.Delete(cmd.Context(), api.JoinPath("/user/%s/client-credentials/%s", args[0], args[1]), api.RequestOptions{DryRun: dryRun})
 			if err != nil {

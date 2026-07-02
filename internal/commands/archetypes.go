@@ -604,8 +604,8 @@ func deleteCommand(deps Dependencies, spec deleteSpec) *cobra.Command {
 		Short: spec.Short,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !force && !dryRun {
-				return fmt.Errorf("%s permanently deletes; pass --force to confirm or --dry-run to rehearse", cmd.CommandPath())
+			if err := requireForceOrDryRun(cmd, "permanently deletes", force, dryRun); err != nil {
+				return err
 			}
 			result, err := deps.Client.Delete(cmd.Context(), spec.Path(args), api.RequestOptions{DryRun: dryRun, APIPrefix: spec.APIPrefix})
 			if err != nil {
