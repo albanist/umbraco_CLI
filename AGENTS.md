@@ -32,17 +32,9 @@ umbraco schema document.create
 umbraco schema media
 ```
 
-## Skills Bundle
+## CLI Skills
 
-This CLI bundles 67 Umbraco skills under `skills/` across categories:
-- `foundation`
-- `extensions`
-- `property-editors`
-- `rich-text`
-- `backend`
-- `testing`
-
-Verify bundle integrity with:
-```bash
-npm run verify:skills
-```
+`skills/cli/` is generated from the command tree by `umbraco
+generate-skills`; regenerate after changing commands or flags, and CI fails
+if the committed copy drifts. Extension-development skills live upstream in
+`umbraco/Umbraco-CMS-Backoffice-Skills`, not in this repo.

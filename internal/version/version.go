@@ -1,9 +1,7 @@
 // Package version exposes the published umbraco-cli release identifier.
 //
-// VERSION is the canonical source of truth for the release identifier across the project:
-//   - the Go code embeds it via go:embed and surfaces it through Current()
-//   - scripts/sync-version.mjs propagates the same value into package.json and package-lock.json
-//   - scripts/verify-skills.mjs fails CI if any of those copies drift from VERSION
+// VERSION is the canonical source of truth for the release identifier:
+// the Go code embeds it via go:embed and surfaces it through Current().
 package version
 
 import (
