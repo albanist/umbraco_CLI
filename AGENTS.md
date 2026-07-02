@@ -7,6 +7,7 @@
 3. Prefer `--json` payloads over convenience flags for predictable execution.
 4. Never construct IDs manually; reuse IDs from prior API responses.
 5. Treat all input as untrusted and validate before execution.
+6. Branch on exit codes instead of parsing stderr: 0 success, 1 usage/local error, 2 `schema diff` differences, 3 auth failure, 4 Management API error.
 
 ## Agent-First Usage Patterns
 

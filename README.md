@@ -327,9 +327,9 @@ testing) are not part of this repo — get those from
 
 ## Collections
 
-- `document` (29) — incl. `urls`, `version` history/rollback, `audit-log`, `publish-descendants`, `sort`, `domains`, `public-access`
-- `media` (15)
-- `doctype` (12)
+- `document` (30) — incl. `urls`, `version` history/rollback, `audit-log`, `publish-descendants`, `sort`, `domains`, `public-access`, and the `bin` recycle-bin subgroup
+- `media` (16) — incl. the `bin` recycle-bin subgroup
+- `doctype` (12) / `mediatype` (8) / `membertype` (8) — the full schema type family, all with `--recursive --types-only` folder handling
 - `datatype` (14)
 - `dictionary` (6)
 - `template` (6)
@@ -342,12 +342,16 @@ testing) are not part of this repo — get those from
 - `logs` (5)
 - `server` (5)
 - `health` (4)
+- `published-cache` (3) — status / rebuild / reload, for stale-content incident response
+- `indexer` (3) — Examine index health and rebuilds, with `--wait` polling
+- `redirect` (6) — the redirect URL tracker: list/get/delete, status, enable/disable
 - `tree` (1)
 - `api` (1)
 - `auth` (5)
-- `automate` (54) — requires [Umbraco Automate](https://docs.umbraco.com/umbraco-automate) on the target instance; see below
+- `schema` — runtime schema introspection (`umbraco schema <command>`) plus `schema diff <envA> <envB>` cross-environment comparison across doctype, datatype, mediatype, membertype, template, language, and dictionary
+- `automate` (8 subgroups) — requires [Umbraco Automate](https://docs.umbraco.com/umbraco-automate) on the target instance; see below
 
-Total: **221 runnable commands** counting every nested subcommand. Group counts above are direct subcommands; nested subgroups like `document version` and `automate workspace group` add the rest.
+Total: **261 runnable commands** counting every nested subcommand. Group counts above are direct subcommands; nested subgroups like `document version`, `document bin`, and the `automate` subgroups add the rest.
 
 ## Umbraco Automate
 

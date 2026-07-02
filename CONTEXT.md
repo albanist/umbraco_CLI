@@ -15,6 +15,7 @@ Implementation runtime is Go (`cmd/umbraco`).
 - Updates follow one contract everywhere: `--json` replaces the resource wholesale, `--merge-json` fetches and deep-merges. Hard deletes require `--force` or `--dry-run`.
 - Config resolves from an explicit `--profile`/`--config` or active profile first; otherwise env, project config, `.umbraco-cli.env`, `.env`, user config, and local `.NET` URL discovery in that order.
 - Auth/connectivity errors include the resolved base URL to make misconfiguration obvious.
+- Exit codes are a contract: 0 success, 1 usage/local error, 2 `schema diff` differences found, 3 auth failure, 4 Management API error.
 
 ## Quick Command Reference
 
@@ -50,6 +51,8 @@ Implementation runtime is Go (`cmd/umbraco`).
 ### Schema
 - `umbraco doctype get <id>`
 - `umbraco doctype list --recursive --types-only --fields id,name,alias`
+- `umbraco mediatype list --recursive --types-only` / `umbraco membertype list`
+- `umbraco schema diff dev live` / `umbraco schema diff dev live --entity template,language,dictionary`
 - `umbraco datatype list --skip 0 --take 50`
 - `umbraco datatype search --query "rich text"`
 - `umbraco datatype extensions <id>`
@@ -65,6 +68,13 @@ Implementation runtime is Go (`cmd/umbraco`).
 - `umbraco user list` / `umbraco user current` / `umbraco user permissions --ids <id> --type document`
 - `umbraco user client-credentials create <userId> --client-id ... --client-secret ...`
 - `umbraco user-group list`
+
+### Operations & incident response
+- `umbraco published-cache status` / `umbraco published-cache rebuild --force` (stale published content)
+- `umbraco indexer list` / `umbraco indexer rebuild ExternalIndex --force --wait` (missing search results)
+- `umbraco redirect list --filter <url-substring>` / `umbraco redirect status`
+- `umbraco document bin list` / `umbraco document bin empty --dry-run` (media has the same `bin` subgroup)
+- `umbraco document grep <substring>` (exhaustive content scan)
 
 ### Diagnostics
 - `umbraco api GET "/item/document/ancestors?id=<id>&id=<id>"`
