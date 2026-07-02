@@ -142,3 +142,17 @@ func TestBinEmptyDryRunSkipsRequest(t *testing.T) {
 		t.Fatalf("expected dry-run preview, got %s", out)
 	}
 }
+
+func TestBinEmptyRejectsStrayArguments(t *testing.T) {
+	deps := binDeps(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("no HTTP request expected for a rejected invocation")
+		return nil, nil
+	})
+
+	// A stray ID must fail loudly: silently ignoring it would turn an
+	// intended single-item delete into a full-bin wipe.
+	_, err := execute(buildBinRoot(deps), "document", "bin", "empty", "trashed-1", "--force")
+	if err == nil || !strings.Contains(err.Error(), "unknown command") && !strings.Contains(err.Error(), "accepts 0 arg") {
+		t.Fatalf("expected stray argument rejection, got %v", err)
+	}
+}

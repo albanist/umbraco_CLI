@@ -28,6 +28,7 @@ func redirectList(deps Dependencies) *cobra.Command {
 		Use:   "list",
 		Short: "List tracked redirects (paginated; use --filter for URL substring search)",
 		Long:  "GET /redirect-management. Lists the redirects Umbraco recorded when published documents were renamed or moved. --filter matches against the original URL.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			params := map[string]any{}
 			if strings.TrimSpace(filter) != "" {
@@ -78,6 +79,7 @@ func redirectSetStatus(deps Dependencies, use string, status string, short strin
 		Use:   use,
 		Short: short,
 		Long:  "POST /redirect-management/status?status=" + status + ". Toggles redirect URL tracking site-wide; the inverse command reverses it.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := deps.Client.Post(cmd.Context(), "/redirect-management/status", nil, api.RequestOptions{
 				DryRun: dryRun,

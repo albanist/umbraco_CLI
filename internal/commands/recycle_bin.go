@@ -66,6 +66,7 @@ func recycleBinEmpty(deps Dependencies, resource string) *cobra.Command {
 		Use:   "empty",
 		Short: fmt.Sprintf("Permanently delete everything in the %s recycle bin", resource),
 		Long:  fmt.Sprintf("DELETE /recycle-bin/%s. Destroys every trashed %s item; there is no undo.", resource, resource),
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireForceOrDryRun(cmd, "permanently destroys every item in the recycle bin", force, dryRun); err != nil {
 				return err

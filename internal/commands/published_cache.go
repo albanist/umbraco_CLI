@@ -21,6 +21,7 @@ func publishedCacheRebuild(deps Dependencies) *cobra.Command {
 		Use:   "rebuild",
 		Short: "Rebuild the published content cache from the database",
 		Long:  "POST /published-cache/rebuild. Rebuilds the published content cache from the database — the standard fix for stale published content. Expensive on large sites; poll 'published-cache status' to see when the rebuild finishes.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireForceOrDryRun(cmd, "rebuilds the entire published cache and is expensive on large sites", force, dryRun); err != nil {
 				return err
@@ -43,6 +44,7 @@ func publishedCacheReload(deps Dependencies) *cobra.Command {
 		Use:   "reload",
 		Short: "Reload the in-memory published cache",
 		Long:  "POST /published-cache/reload. Reloads the in-memory published cache from the cache store without a database rebuild; much cheaper than 'published-cache rebuild'.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := deps.Client.Post(cmd.Context(), "/published-cache/reload", nil, api.RequestOptions{DryRun: dryRun})
 			if err != nil {
