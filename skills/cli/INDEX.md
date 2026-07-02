@@ -32,6 +32,7 @@ Per-resource CLI command skills.
 | [umbraco-member-group](umbraco-member-group/SKILL.md) | Member group lookups (for 'member set-groups' GUID discovery) |
 | [umbraco-models-builder](umbraco-models-builder/SKILL.md) | Trigger and inspect ModelsBuilder source generation |
 | [umbraco-published-cache](umbraco-published-cache/SKILL.md) | Published content cache operations |
+| [umbraco-redirect](umbraco-redirect/SKILL.md) | Redirect URL management (tracked 301s from renamed/moved documents) |
 | [umbraco-server](umbraco-server/SKILL.md) | Server information and diagnostics |
 | [umbraco-template](umbraco-template/SKILL.md) | Template operations |
 | [umbraco-tree](umbraco-tree/SKILL.md) | Tree navigation helpers |
