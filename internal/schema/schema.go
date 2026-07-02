@@ -270,6 +270,14 @@ var endpointBindings = map[string]endpointBinding{
 	"published-cache.rebuild": {Method: "POST", Path: "/published-cache/rebuild"},
 	"published-cache.reload":  {Method: "POST", Path: "/published-cache/reload"},
 
+	// redirect
+	"redirect.list":    {Method: "GET", Path: "/redirect-management"},
+	"redirect.get":     {Method: "GET", Path: "/redirect-management/{id}"},
+	"redirect.delete":  {Method: "DELETE", Path: "/redirect-management/{id}"},
+	"redirect.status":  {Method: "GET", Path: "/redirect-management/status"},
+	"redirect.enable":  {Method: "POST", Path: "/redirect-management/status"},
+	"redirect.disable": {Method: "POST", Path: "/redirect-management/status"},
+
 	// webhook
 	"webhook.list":   {Method: "GET", Path: "/webhook"},
 	"webhook.get":    {Method: "GET", Path: "/webhook/{id}"},
