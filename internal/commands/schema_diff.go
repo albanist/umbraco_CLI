@@ -62,7 +62,7 @@ func schemaDiffCommand(deps Dependencies) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&entityRaw, "entity", "", "Comma-separated entity kinds to compare: doctype,datatype (default: both)")
+	cmd.Flags().StringVar(&entityRaw, "entity", "", "Comma-separated entity kinds to compare: doctype,datatype,mediatype,membertype,template,language,dictionary (default: doctype,datatype)")
 	cmd.Flags().StringArrayVar(&include, "include", nil, "Only include matching aliases/names; repeat or comma-separate")
 	cmd.Flags().StringArrayVar(&exclude, "exclude", nil, "Exclude matching aliases/names; repeat or comma-separate")
 	cmd.Flags().BoolVar(&exitZero, "exit-zero", false, "Exit 0 even when schema differences are found")
@@ -80,37 +80,51 @@ func fetchSchemaDiffEnvironment(ctx context.Context, side string, label string, 
 	}
 	client := api.NewClient(cfg, httpClient, auth.New(cfg, httpClient))
 
-	needsDoctypes := schemaDiffEntityRequested(entities, schemaDiffDoctype)
-	needsDatatypes := schemaDiffEntityRequested(entities, schemaDiffDatatype) || needsDoctypes
-
-	var rawDatatypes []map[string]any
-	var rawDoctypes []map[string]any
-	if needsDatatypes {
-		rawDatatypes, err = fetchSchemaDiffRawEntities(ctx, client, schemaDiffDatatype)
-		if err != nil {
-			return nil, fmt.Errorf("%s %q datatype fetch failed: %w", side, label, err)
-		}
+	requested := func(kind schemaDiffEntityKind) bool {
+		return schemaDiffEntityRequested(entities, kind)
 	}
-	if needsDoctypes {
-		rawDoctypes, err = fetchSchemaDiffRawEntities(ctx, client, schemaDiffDoctype)
+	// Reference maps translate server-assigned IDs into cross-environment
+	// aliases before diffing. Datatype refs are needed by every property-
+	// bearing type kind; type refs are needed for composition references.
+	needsDatatypes := requested(schemaDiffDatatype) || requested(schemaDiffDoctype) || requested(schemaDiffMediatype) || requested(schemaDiffMembertype)
+
+	raws := map[schemaDiffEntityKind][]map[string]any{}
+	fetchKind := func(kind schemaDiffEntityKind, needed bool) error {
+		if !needed {
+			return nil
+		}
+		if _, done := raws[kind]; done {
+			return nil
+		}
+		fetched, err := fetchSchemaDiffRawEntities(ctx, client, kind)
 		if err != nil {
-			return nil, fmt.Errorf("%s %q doctype fetch failed: %w", side, label, err)
+			return fmt.Errorf("%s %q %s fetch failed: %w", side, label, kind, err)
+		}
+		raws[kind] = fetched
+		return nil
+	}
+
+	if err := fetchKind(schemaDiffDatatype, needsDatatypes); err != nil {
+		return nil, err
+	}
+	for _, kind := range []schemaDiffEntityKind{schemaDiffDoctype, schemaDiffMediatype, schemaDiffMembertype, schemaDiffTemplate, schemaDiffLanguage, schemaDiffDictionary} {
+		if err := fetchKind(kind, requested(kind)); err != nil {
+			return nil, err
 		}
 	}
 
 	refs := schemaDiffReferences{
-		DataTypes:     schemaDiffIDAliasMap(schemaDiffDatatype, rawDatatypes),
-		DocumentTypes: schemaDiffIDAliasMap(schemaDiffDoctype, rawDoctypes),
+		DataTypes:     schemaDiffIDAliasMap(schemaDiffDatatype, raws[schemaDiffDatatype]),
+		DocumentTypes: schemaDiffIDAliasMap(schemaDiffDoctype, raws[schemaDiffDoctype]),
+		MediaTypes:    schemaDiffIDAliasMap(schemaDiffMediatype, raws[schemaDiffMediatype]),
+		MemberTypes:   schemaDiffIDAliasMap(schemaDiffMembertype, raws[schemaDiffMembertype]),
+		Templates:     schemaDiffIDAliasMap(schemaDiffTemplate, raws[schemaDiffTemplate]),
 	}
-	out := make([]schemaDiffEntity, 0, len(rawDatatypes)+len(rawDoctypes))
-	if schemaDiffEntityRequested(entities, schemaDiffDoctype) {
-		for _, raw := range rawDoctypes {
-			out = append(out, normalizeSchemaEntity(schemaDiffDoctype, raw, refs))
-		}
-	}
-	if schemaDiffEntityRequested(entities, schemaDiffDatatype) {
-		for _, raw := range rawDatatypes {
-			out = append(out, normalizeSchemaEntity(schemaDiffDatatype, raw, refs))
+
+	out := make([]schemaDiffEntity, 0)
+	for _, kind := range entities {
+		for _, raw := range raws[kind] {
+			out = append(out, normalizeSchemaEntity(kind, raw, refs))
 		}
 	}
 	return out, nil
@@ -119,27 +133,157 @@ func fetchSchemaDiffEnvironment(ctx context.Context, side string, label string, 
 func fetchSchemaDiffRawEntities(ctx context.Context, client *api.Client, kind schemaDiffEntityKind) ([]map[string]any, error) {
 	switch kind {
 	case schemaDiffDoctype:
-		return fetchSchemaDiffDoctypes(ctx, client)
+		return fetchSchemaDiffSchemaTypes(ctx, client, "document-type")
+	case schemaDiffMediatype:
+		return fetchSchemaDiffSchemaTypes(ctx, client, "media-type")
+	case schemaDiffMembertype:
+		return fetchSchemaDiffSchemaTypes(ctx, client, "member-type")
 	case schemaDiffDatatype:
 		return fetchSchemaDiffDatatypes(ctx, client)
+	case schemaDiffTemplate:
+		return fetchSchemaDiffTemplates(ctx, client)
+	case schemaDiffLanguage:
+		return fetchSchemaDiffLanguages(ctx, client)
+	case schemaDiffDictionary:
+		return fetchSchemaDiffDictionary(ctx, client)
 	default:
 		return nil, fmt.Errorf("unsupported schema diff entity kind %q", kind)
 	}
 }
 
-func fetchSchemaDiffDoctypes(ctx context.Context, client *api.Client) ([]map[string]any, error) {
+func fetchSchemaDiffSchemaTypes(ctx context.Context, client *api.Client, resource string) ([]map[string]any, error) {
 	root, err := getAllPagesWithFallback(ctx, client, autoPaginateDefaultPageSize, 0, 0,
-		getRequestCandidate{path: "/tree/document-type/root", opts: api.RequestOptions{}},
-		getRequestCandidate{path: "/document-type/root", opts: api.RequestOptions{}},
+		getRequestCandidate{path: "/tree/" + resource + "/root", opts: api.RequestOptions{}},
+		getRequestCandidate{path: "/" + resource + "/root", opts: api.RequestOptions{}},
 	)
 	if err != nil {
 		return nil, err
 	}
-	items, err := flattenSchemaTypeTree(ctx, client, "document-type", resultItems(root), autoPaginateDefaultPageSize, true, 0)
+	items, err := flattenSchemaTypeTree(ctx, client, resource, resultItems(root), autoPaginateDefaultPageSize, true, 0)
 	if err != nil {
 		return nil, err
 	}
-	return fetchSchemaDiffDetails(ctx, client, "/document-type/%s", items)
+	return fetchSchemaDiffDetails(ctx, client, "/"+resource+"/%s", items)
+}
+
+// fetchSchemaDiffTemplates walks the template tree: templates nest under
+// their master template rather than under folders, so every item with
+// children is descended regardless of folder-ness.
+func fetchSchemaDiffTemplates(ctx context.Context, client *api.Client) ([]map[string]any, error) {
+	items, err := collectTemplateTreeItems(ctx, client, "")
+	if err != nil {
+		return nil, err
+	}
+	return fetchSchemaDiffDetails(ctx, client, "/template/%s", items)
+}
+
+func collectTemplateTreeItems(ctx context.Context, client *api.Client, parentID string) ([]any, error) {
+	var candidates []getRequestCandidate
+	if parentID == "" {
+		candidates = []getRequestCandidate{
+			{path: "/tree/template/root", opts: api.RequestOptions{}},
+			{path: "/template/root", opts: api.RequestOptions{}},
+		}
+	} else {
+		candidates = []getRequestCandidate{
+			{path: "/tree/template/children", opts: api.RequestOptions{Params: map[string]any{"parentId": parentID}}},
+		}
+	}
+	page, err := getAllPagesWithFallback(ctx, client, autoPaginateDefaultPageSize, 0, 0, candidates...)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]any, 0)
+	for _, item := range resultItems(page) {
+		out = append(out, item)
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		hasChildren, _ := entry["hasChildren"].(bool)
+		id, _ := stringField(entry, "id")
+		if !hasChildren || id == "" {
+			continue
+		}
+		children, err := collectTemplateTreeItems(ctx, client, id)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, children...)
+	}
+	return out, nil
+}
+
+// fetchSchemaDiffLanguages returns the language list directly: the list
+// items are the full language models, so no per-item detail fetch is needed.
+func fetchSchemaDiffLanguages(ctx context.Context, client *api.Client) ([]map[string]any, error) {
+	page, err := getAllPagesWithFallback(ctx, client, autoPaginateDefaultPageSize, 0, 0,
+		getRequestCandidate{path: "/language", opts: api.RequestOptions{}},
+	)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]map[string]any, 0)
+	for _, item := range resultItems(page) {
+		if entry, ok := item.(map[string]any); ok {
+			out = append(out, entry)
+		}
+	}
+	return out, nil
+}
+
+func fetchSchemaDiffDictionary(ctx context.Context, client *api.Client) ([]map[string]any, error) {
+	page, err := getAllPagesWithFallback(ctx, client, autoPaginateDefaultPageSize, 0, 0,
+		getRequestCandidate{path: "/dictionary", opts: api.RequestOptions{}},
+	)
+	if err != nil {
+		return nil, err
+	}
+	overview := resultItems(page)
+
+	// Only the overview carries each item's parent; /dictionary/{id} returns
+	// just id/name/translations. Capture the tree relationship here so a key
+	// moved under a different parent is visible to the diff.
+	namesByID := map[string]string{}
+	parentIDByID := map[string]string{}
+	for _, item := range overview {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		id, _ := stringField(entry, "id")
+		if id == "" {
+			continue
+		}
+		if name, ok := stringField(entry, "name"); ok {
+			namesByID[id] = name
+		}
+		if parent, ok := entry["parent"].(map[string]any); ok {
+			if parentID, ok := stringField(parent, "id"); ok {
+				parentIDByID[id] = parentID
+			}
+		}
+	}
+
+	details, err := fetchSchemaDiffDetails(ctx, client, "/dictionary/%s", overview)
+	if err != nil {
+		return nil, err
+	}
+	// Reattach the parent by name (the cross-environment identity for
+	// dictionary items) — parent IDs differ across environments by nature.
+	for _, detail := range details {
+		id, _ := stringField(detail, "id")
+		parentID, ok := parentIDByID[id]
+		if !ok {
+			continue
+		}
+		if parentName := namesByID[parentID]; parentName != "" {
+			detail["parentName"] = parentName
+		} else {
+			detail["parentName"] = parentID
+		}
+	}
+	return details, nil
 }
 
 func fetchSchemaDiffDatatypes(ctx context.Context, client *api.Client) ([]map[string]any, error) {

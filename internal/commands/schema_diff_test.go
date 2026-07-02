@@ -215,8 +215,8 @@ func TestSchemaDiffUnknownEntityFails(t *testing.T) {
 		return endpointJSONResponse(http.StatusNotFound, `null`), nil
 	})
 
-	_, err := execute(buildRootWithCollections(t, deps), "schema", "diff", "dev", "live", "--entity", "template")
-	if err == nil || !strings.Contains(err.Error(), `unknown schema diff entity "template"`) {
+	_, err := execute(buildRootWithCollections(t, deps), "schema", "diff", "dev", "live", "--entity", "webhook")
+	if err == nil || !strings.Contains(err.Error(), `unknown schema diff entity "webhook"`) {
 		t.Fatalf("expected unknown entity error, got %v", err)
 	}
 }
@@ -258,5 +258,182 @@ func TestSchemaDiffFetchErrorLabelsEnvironment(t *testing.T) {
 	_, err := execute(buildRootWithCollections(t, deps), "schema", "diff", "dev", "live", "--entity", "datatype")
 	if err == nil || !strings.Contains(fmt.Sprint(err), `envB "live" datatype fetch failed`) {
 		t.Fatalf("expected envB datatype fetch error, got %v", err)
+	}
+}
+
+func TestSchemaDiffTemplateWalksNestedTreeAndDetectsContentChange(t *testing.T) {
+	prepareSchemaDiffProfiles(t)
+	deps := schemaDiffTestDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/tree/template/root":
+			return endpointJSONResponse(http.StatusOK, `{"items":[{"id":"tpl-master","alias":"master","name":"Master","hasChildren":true}],"total":1}`), nil
+		case "/umbraco/management/api/v1/tree/template/children":
+			if req.URL.Query().Get("parentId") != "tpl-master" {
+				return endpointJSONResponse(http.StatusNotFound, `null`), nil
+			}
+			return endpointJSONResponse(http.StatusOK, `{"items":[{"id":"tpl-home","alias":"homePage","name":"Home Page","hasChildren":false}],"total":1}`), nil
+		case "/umbraco/management/api/v1/template/tpl-master":
+			return endpointJSONResponse(http.StatusOK, `{"id":"tpl-master","alias":"master","name":"Master","content":"<html></html>","masterTemplate":null}`), nil
+		case "/umbraco/management/api/v1/template/tpl-home":
+			return schemaDiffRouteHost(req,
+				`{"id":"tpl-home","alias":"homePage","name":"Home Page","content":"<h1>v1</h1>","masterTemplate":{"id":"tpl-master"}}`,
+				`{"id":"tpl-home","alias":"homePage","name":"Home Page","content":"<h1>v2</h1>","masterTemplate":{"id":"tpl-master"}}`)
+		default:
+			return endpointJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	out, err := execute(buildRootWithCollections(t, deps), "schema", "diff", "dev", "live", "--entity", "template", "--exit-zero")
+	if err != nil {
+		t.Fatalf("template diff failed: %v", err)
+	}
+	payload := decodeSchemaDiffOutput(t, out)
+	if payload["equal"] == true {
+		t.Fatalf("expected content change detected, got %s", out)
+	}
+	if !strings.Contains(out, `"homePage"`) || !strings.Contains(out, "content") {
+		t.Fatalf("expected homePage content delta, got %s", out)
+	}
+	// The nested template only differs in content; the master reference id
+	// is identical-by-alias and must not appear as a delta.
+	if strings.Contains(out, "tpl-master") {
+		t.Fatalf("expected master template id normalized away, got %s", out)
+	}
+}
+
+func TestSchemaDiffLanguageUsesIsoCodeIdentity(t *testing.T) {
+	prepareSchemaDiffProfiles(t)
+	deps := schemaDiffTestDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/language":
+			return schemaDiffRouteHost(req,
+				`{"items":[{"isoCode":"en-US","name":"English (US)","isDefault":true,"isMandatory":true,"fallbackIsoCode":null}],"total":1}`,
+				`{"items":[{"isoCode":"en-US","name":"English (US)","isDefault":true,"isMandatory":false,"fallbackIsoCode":null},{"isoCode":"da-DK","name":"Danish","isDefault":false,"isMandatory":false,"fallbackIsoCode":"en-US"}],"total":2}`)
+		default:
+			return endpointJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	out, err := execute(buildRootWithCollections(t, deps), "schema", "diff", "dev", "live", "--entity", "language", "--exit-zero")
+	if err != nil {
+		t.Fatalf("language diff failed: %v", err)
+	}
+	payload := decodeSchemaDiffOutput(t, out)
+	counts, _ := payload["counts"].(map[string]any)
+	if counts["added"] != float64(1) || counts["changed"] != float64(1) {
+		t.Fatalf("expected 1 added (da-DK) and 1 changed (en-US isMandatory), got %s", out)
+	}
+	if !strings.Contains(out, "da-DK") || !strings.Contains(out, "isMandatory") {
+		t.Fatalf("expected iso-code identities and mandatory delta, got %s", out)
+	}
+}
+
+func TestSchemaDiffDictionaryComparesTranslations(t *testing.T) {
+	prepareSchemaDiffProfiles(t)
+	deps := schemaDiffTestDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/dictionary":
+			return endpointJSONResponse(http.StatusOK, `{"items":[{"id":"dict-greeting","name":"Greeting"}],"total":1}`), nil
+		case "/umbraco/management/api/v1/dictionary/dict-greeting":
+			return schemaDiffRouteHost(req,
+				`{"id":"dict-greeting","name":"Greeting","translations":[{"isoCode":"en-US","translation":"Hello"}]}`,
+				`{"id":"dict-greeting","name":"Greeting","translations":[{"isoCode":"en-US","translation":"Hi there"}]}`)
+		default:
+			return endpointJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	out, err := execute(buildRootWithCollections(t, deps), "schema", "diff", "dev", "live", "--entity", "dictionary", "--exit-zero")
+	if err != nil {
+		t.Fatalf("dictionary diff failed: %v", err)
+	}
+	payload := decodeSchemaDiffOutput(t, out)
+	if payload["equal"] == true {
+		t.Fatalf("expected translation change detected, got %s", out)
+	}
+	if !strings.Contains(out, "Hi there") {
+		t.Fatalf("expected translation delta, got %s", out)
+	}
+}
+
+func TestSchemaDiffMediatypeMapsDataTypeReferences(t *testing.T) {
+	prepareSchemaDiffProfiles(t)
+	// The same datatype has different server-assigned IDs per environment;
+	// mapping to aliases must keep identical media types equal.
+	deps := schemaDiffTestDeps(func(req *http.Request) (*http.Response, error) {
+		dev := strings.Contains(req.URL.Host, "dev")
+		dataID := "data-live"
+		if dev {
+			dataID = "data-dev"
+		}
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/filter/data-type":
+			return endpointJSONResponse(http.StatusOK, `{"items":[{"id":"`+dataID+`","name":"Upload"}],"total":1}`), nil
+		case "/umbraco/management/api/v1/data-type/data-dev", "/umbraco/management/api/v1/data-type/data-live":
+			return endpointJSONResponse(http.StatusOK, `{"id":"`+dataID+`","name":"Upload","editorAlias":"Umbraco.UploadField","values":[]}`), nil
+		case "/umbraco/management/api/v1/tree/media-type/root":
+			return endpointJSONResponse(http.StatusOK, `{"items":[{"id":"mt-image","alias":"image","name":"Image"}],"total":1}`), nil
+		case "/umbraco/management/api/v1/media-type/mt-image":
+			return endpointJSONResponse(http.StatusOK, `{"id":"mt-image","alias":"image","name":"Image","properties":[{"alias":"umbracoFile","dataType":{"id":"`+dataID+`"}}]}`), nil
+		default:
+			return endpointJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	out, err := execute(buildRootWithCollections(t, deps), "schema", "diff", "dev", "live", "--entity", "mediatype")
+	if err != nil {
+		t.Fatalf("mediatype diff failed: %v", err)
+	}
+	payload := decodeSchemaDiffOutput(t, out)
+	if payload["equal"] != true {
+		t.Fatalf("expected identical media types after datatype id normalization, got %s", out)
+	}
+}
+
+func TestSchemaDiffDictionaryDetectsParentMoves(t *testing.T) {
+	prepareSchemaDiffProfiles(t)
+	// Same key, same translations — but on live it moved under a different
+	// parent. Only the overview response carries the parent relationship.
+	deps := schemaDiffTestDeps(func(req *http.Request) (*http.Response, error) {
+		dev := strings.Contains(req.URL.Host, "dev")
+		parentID, parentName := "dict-common", "Common"
+		if !dev {
+			parentID, parentName = "dict-forms", "Forms"
+		}
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/dictionary":
+			return endpointJSONResponse(http.StatusOK, `{"items":[
+				{"id":"`+parentID+`","name":"`+parentName+`","parent":null},
+				{"id":"dict-greeting","name":"Greeting","parent":{"id":"`+parentID+`"}}
+			],"total":2}`), nil
+		case "/umbraco/management/api/v1/dictionary/dict-common", "/umbraco/management/api/v1/dictionary/dict-forms":
+			return endpointJSONResponse(http.StatusOK, `{"id":"`+parentID+`","name":"`+parentName+`","translations":[]}`), nil
+		case "/umbraco/management/api/v1/dictionary/dict-greeting":
+			return endpointJSONResponse(http.StatusOK, `{"id":"dict-greeting","name":"Greeting","translations":[{"isoCode":"en-US","translation":"Hello"}]}`), nil
+		default:
+			return endpointJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	out, err := execute(buildRootWithCollections(t, deps), "schema", "diff", "dev", "live", "--entity", "dictionary", "--include", "Greeting", "--exit-zero")
+	if err != nil {
+		t.Fatalf("dictionary parent-move diff failed: %v", err)
+	}
+	payload := decodeSchemaDiffOutput(t, out)
+	if payload["equal"] == true {
+		t.Fatalf("expected parent move detected, got %s", out)
+	}
+	if !strings.Contains(out, "parentName") || !strings.Contains(out, "Forms") {
+		t.Fatalf("expected parentName delta Common -> Forms, got %s", out)
 	}
 }

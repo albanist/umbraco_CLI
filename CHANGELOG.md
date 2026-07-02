@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- expanded `schema diff` beyond doctype/datatype: `--entity` now also accepts `mediatype`, `membertype`, `template` (nested template trees walked, `masterTemplate` references compared by alias), `language` (identified by ISO code), and `dictionary` (translations compared); cross-environment ID references for data types, document/media/member types, and templates are normalized to aliases so identical schema on both sides diffs clean; the default entity set stays doctype,datatype
+
 - added `mediatype` and `membertype` command groups completing the schema type family alongside `doctype`: `list` (with the same `--recursive`/`--types-only` folder handling doctype has), folder-aware `get` errors, `children`, `search`, `create`/`update`/`delete`, and `export`; the doctype folder-tree helpers were generalized so all three resources share one implementation
 
 - added recycle bin subgroups `document bin` and `media bin` completing the trash lifecycle: `list` (paginated bin root), `children <id>` (descend trashed subtrees), `original-parent <id>` (the default restore target), `delete <id>` (permanently delete one trashed item, gated), and `empty` (destroy everything in the bin, gated behind `--force`/`--dry-run`)
