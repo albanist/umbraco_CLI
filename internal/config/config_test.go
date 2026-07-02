@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -597,4 +598,58 @@ func containsAll(value string, substrings ...string) bool {
 		}
 	}
 	return true
+}
+
+func TestLoadReadsProcessEnv(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Chdir(t.TempDir())
+	t.Setenv("UMBRACO_BASE_URL", "https://env.example.test/")
+	t.Setenv("UMBRACO_CLIENT_ID", "env-id")
+	t.Setenv("UMBRACO_CLIENT_SECRET", "env-secret")
+	t.Setenv("UMBRACO_OUTPUT_FORMAT", "table")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if cfg.BaseURL != "https://env.example.test" || cfg.ClientID != "env-id" || cfg.ClientSecret != "env-secret" {
+		t.Fatalf("unexpected config from env: %+v", cfg)
+	}
+	if cfg.OutputFormat != OutputTable {
+		t.Fatalf("expected table output format, got %q", cfg.OutputFormat)
+	}
+}
+
+func TestLoadWithOptionsProfileOverridesEnvCredentials(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Chdir(t.TempDir())
+	t.Setenv("UMBRACO_BASE_URL", "https://env.example.test")
+	t.Setenv("UMBRACO_CLIENT_ID", "env-id")
+	t.Setenv("UMBRACO_CLIENT_SECRET", "env-secret")
+	t.Setenv("UMBRACO_OUTPUT_FORMAT", "")
+
+	if err := WriteUserConfigWithOptions(LoadOptions{Profile: "dev"}, Config{
+		BaseURL: "https://dev.example.test", ClientID: "dev-id", ClientSecret: "dev-secret",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadWithOptions(LoadOptions{Profile: "dev"})
+	if err != nil {
+		t.Fatalf("LoadWithOptions failed: %v", err)
+	}
+	if cfg.BaseURL != "https://dev.example.test" || cfg.ClientID != "dev-id" {
+		t.Fatalf("expected profile to own environment identity, got %+v", cfg)
+	}
+}
+
+func TestIsConfigFileNotFound(t *testing.T) {
+	err := fmt.Errorf("wrapped: %w", &ConfigFileNotFoundError{Path: "/x"})
+	if !IsConfigFileNotFound(err) {
+		t.Fatalf("expected wrapped ConfigFileNotFoundError to match")
+	}
+	if IsConfigFileNotFound(fmt.Errorf("other")) {
+		t.Fatalf("expected unrelated error not to match")
+	}
 }

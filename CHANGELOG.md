@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- decomposed the 1,000-line config package internals for maintainability: profile management, source loaders, and user-config writing now live in dedicated files, .NET host-project discovery moved to a new `internal/dotnet` package, and the documented config precedence is expressed as an explicit ordered source list in code; behavior is unchanged (all existing tests pass unmodified) while config test coverage rose from 65% to 84% and discovery gained its own fixture suite (93%); CI coverage floor ratcheted 74.5% -> 76%
+
 - added CI quality gates: golangci-lint (errcheck, staticcheck, govet, unused, ineffassign, misspell, unconvert) now runs on every push/PR with all existing findings fixed, and total test coverage is enforced against a floor (74.5%) that ratchets up as coverage grows; auth token provider coverage rose from 52% to 97% (caching, expiry margin, malformed responses) and the health command group from 41% to 86%
 
 - hardened the API client: media/file uploads (`MultipartPost`) now retry rate limits (429) and refresh expired tokens (401) through the same shared retry path as JSON requests instead of failing immediately; computed retry backoff gained jitter so concurrent commands rate-limited together do not retry in lockstep (server-provided `Retry-After` is still honored verbatim); API error messages cap the rendered response payload at 500 bytes with a `…(truncated)` marker so pathological error bodies cannot flood terminals or agent context windows (the full payload remains available programmatically); and the HTTP transport now enforces TLS 1.2 as a minimum version
