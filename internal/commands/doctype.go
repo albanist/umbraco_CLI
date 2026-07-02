@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
-	"umbraco-cli/internal/schema"
 	"umbraco-cli/internal/validate"
 )
 
@@ -284,39 +283,27 @@ func itemID(item any) string {
 }
 
 func doctypeCreate(deps Dependencies) *cobra.Command {
-	var jsonPayload string
-	var dryRun bool
-	var printTemplate bool
-	var element bool
-	cmd := &cobra.Command{Use: "create", Short: "Create document type (pass --element to create an element type)", RunE: func(cmd *cobra.Command, args []string) error {
-		if printTemplate {
-			return printResult(cmd, deps, schema.Templates["doctype.create"])
-		}
-		if err := requireValue("--json", jsonPayload); err != nil {
-			return err
-		}
-		body, err := parsePayload(jsonPayload)
-		if err != nil {
-			return err
-		}
-		if _, err := ensurePayloadID(body); err != nil {
-			return err
-		}
-		normalizeDoctypePayload(body)
-		if element {
-			body["isElement"] = true
-		}
-		result, err := deps.Client.Post(cmd.Context(), "/document-type", body, api.RequestOptions{DryRun: dryRun})
-		if err != nil {
-			return err
-		}
-		return printResult(cmd, deps, createResult(result, body, "icon"))
-	}}
-	cmd.Flags().StringVar(&jsonPayload, "json", "", "Create payload as JSON")
-	addDryRunFlag(cmd, &dryRun)
-	cmd.Flags().BoolVar(&printTemplate, "print-template", false, "Print an annotated JSON skeleton; substitute placeholders before passing to --json")
-	cmd.Flags().BoolVar(&element, "element", false, "Convenience flag for --json '{...,\"isElement\":true}'; overrides any isElement set in --json")
-	return cmd
+	return createCommand(deps, createSpec{
+		Use:         "create",
+		Short:       "Create document type (pass --element to create an element type)",
+		Path:        "/document-type",
+		TemplateKey: "doctype.create",
+		ResultKeys:  []string{"icon"},
+		Normalize: func(body map[string]any) error {
+			normalizeDoctypePayload(body)
+			return nil
+		},
+		Flags: func(cmd *cobra.Command) func(map[string]any) error {
+			var element bool
+			cmd.Flags().BoolVar(&element, "element", false, "Convenience flag for --json '{...,\"isElement\":true}'; overrides any isElement set in --json")
+			return func(body map[string]any) error {
+				if element {
+					body["isElement"] = true
+				}
+				return nil
+			}
+		},
+	})
 }
 
 func doctypeUpdate(deps Dependencies) *cobra.Command {
