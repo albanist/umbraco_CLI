@@ -270,6 +270,24 @@ var endpointBindings = map[string]endpointBinding{
 	"published-cache.rebuild": {Method: "POST", Path: "/published-cache/rebuild"},
 	"published-cache.reload":  {Method: "POST", Path: "/published-cache/reload"},
 
+	// media-type / member-type (schema type groups sharing the doctype folder semantics)
+	"mediatype.list":      {Method: "GET", Path: "/tree/media-type/root"},
+	"mediatype.get":       {Method: "GET", Path: "/media-type/{id}"},
+	"mediatype.children":  {Method: "GET", Path: "/tree/media-type/children"},
+	"mediatype.search":    {Method: "GET", Path: "/item/media-type/search"},
+	"mediatype.create":    {Method: "POST", Path: "/media-type"},
+	"mediatype.update":    {Method: "PUT", Path: "/media-type/{id}"},
+	"mediatype.delete":    {Method: "DELETE", Path: "/media-type/{id}"},
+	"mediatype.export":    {Method: "GET", Path: "/media-type/{id}/export"},
+	"membertype.list":     {Method: "GET", Path: "/tree/member-type/root"},
+	"membertype.get":      {Method: "GET", Path: "/member-type/{id}"},
+	"membertype.children": {Method: "GET", Path: "/tree/member-type/children"},
+	"membertype.search":   {Method: "GET", Path: "/item/member-type/search"},
+	"membertype.create":   {Method: "POST", Path: "/member-type"},
+	"membertype.update":   {Method: "PUT", Path: "/member-type/{id}"},
+	"membertype.delete":   {Method: "DELETE", Path: "/member-type/{id}"},
+	"membertype.export":   {Method: "GET", Path: "/member-type/{id}/export"},
+
 	// recycle bin (document/media symmetric)
 	"document.bin.list":            {Method: "GET", Path: "/recycle-bin/document/root"},
 	"document.bin.children":        {Method: "GET", Path: "/recycle-bin/document/children"},

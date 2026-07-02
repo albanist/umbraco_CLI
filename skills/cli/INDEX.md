@@ -29,8 +29,10 @@ Per-resource CLI command skills.
 | [umbraco-language](umbraco-language/SKILL.md) | Language and culture management for variant content |
 | [umbraco-logs](umbraco-logs/SKILL.md) | Log and diagnostics operations |
 | [umbraco-media](umbraco-media/SKILL.md) | Media asset operations |
+| [umbraco-mediatype](umbraco-mediatype/SKILL.md) | Media type operations |
 | [umbraco-member](umbraco-member/SKILL.md) | Front-office member operations (login, profile, groups) |
 | [umbraco-member-group](umbraco-member-group/SKILL.md) | Member group lookups (for 'member set-groups' GUID discovery) |
+| [umbraco-membertype](umbraco-membertype/SKILL.md) | Member type operations |
 | [umbraco-models-builder](umbraco-models-builder/SKILL.md) | Trigger and inspect ModelsBuilder source generation |
 | [umbraco-published-cache](umbraco-published-cache/SKILL.md) | Published content cache operations |
 | [umbraco-redirect](umbraco-redirect/SKILL.md) | Redirect URL management (tracked 301s from renamed/moved documents) |

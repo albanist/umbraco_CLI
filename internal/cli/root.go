@@ -70,6 +70,8 @@ func NewRootCommand() *cobra.Command {
 	commands.RegisterPublishedCache(root, deps)
 	commands.RegisterRedirect(root, deps)
 	commands.RegisterIndexer(root, deps)
+	commands.RegisterMediaType(root, deps)
+	commands.RegisterMemberType(root, deps)
 	commands.RegisterTree(root, deps)
 	commands.RegisterAPI(root, deps)
 	commands.RegisterAuth(root, deps)
