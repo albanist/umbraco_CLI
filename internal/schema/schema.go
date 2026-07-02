@@ -270,6 +270,18 @@ var endpointBindings = map[string]endpointBinding{
 	"published-cache.rebuild": {Method: "POST", Path: "/published-cache/rebuild"},
 	"published-cache.reload":  {Method: "POST", Path: "/published-cache/reload"},
 
+	// recycle bin (document/media symmetric)
+	"document.bin.list":            {Method: "GET", Path: "/recycle-bin/document/root"},
+	"document.bin.children":        {Method: "GET", Path: "/recycle-bin/document/children"},
+	"document.bin.original-parent": {Method: "GET", Path: "/recycle-bin/document/{id}/original-parent"},
+	"document.bin.delete":          {Method: "DELETE", Path: "/recycle-bin/document/{id}"},
+	"document.bin.empty":           {Method: "DELETE", Path: "/recycle-bin/document"},
+	"media.bin.list":               {Method: "GET", Path: "/recycle-bin/media/root"},
+	"media.bin.children":           {Method: "GET", Path: "/recycle-bin/media/children"},
+	"media.bin.original-parent":    {Method: "GET", Path: "/recycle-bin/media/{id}/original-parent"},
+	"media.bin.delete":             {Method: "DELETE", Path: "/recycle-bin/media/{id}"},
+	"media.bin.empty":              {Method: "DELETE", Path: "/recycle-bin/media"},
+
 	// indexer
 	"indexer.list":    {Method: "GET", Path: "/indexer"},
 	"indexer.get":     {Method: "GET", Path: "/indexer/{indexName}"},
