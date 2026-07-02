@@ -11,8 +11,13 @@ import (
 type schemaDiffEntityKind string
 
 const (
-	schemaDiffDoctype  schemaDiffEntityKind = "doctype"
-	schemaDiffDatatype schemaDiffEntityKind = "datatype"
+	schemaDiffDoctype    schemaDiffEntityKind = "doctype"
+	schemaDiffDatatype   schemaDiffEntityKind = "datatype"
+	schemaDiffMediatype  schemaDiffEntityKind = "mediatype"
+	schemaDiffMembertype schemaDiffEntityKind = "membertype"
+	schemaDiffTemplate   schemaDiffEntityKind = "template"
+	schemaDiffLanguage   schemaDiffEntityKind = "language"
+	schemaDiffDictionary schemaDiffEntityKind = "dictionary"
 )
 
 type schemaDiffOptions struct {
@@ -173,9 +178,19 @@ func normalizeSchemaEntity(kind schemaDiffEntityKind, raw map[string]any, refs s
 type schemaDiffReferences struct {
 	DataTypes     map[string]string
 	DocumentTypes map[string]string
+	MediaTypes    map[string]string
+	MemberTypes   map[string]string
+	Templates     map[string]string
 }
 
 func schemaEntityAlias(kind schemaDiffEntityKind, raw map[string]any) string {
+	// Languages have no alias; the ISO code is their cross-environment
+	// identity.
+	if kind == schemaDiffLanguage {
+		if iso, ok := stringField(raw, "isoCode"); ok {
+			return iso
+		}
+	}
 	if alias, ok := stringField(raw, "alias"); ok {
 		return alias
 	}
@@ -233,6 +248,21 @@ func normalizeSchemaMap(input map[string]any, refs schemaDiffReferences) map[str
 			}
 		case "documentType":
 			if mapped, ok := normalizeReferenceMap(value, refs.DocumentTypes); ok {
+				out[normalizedKey] = mapped
+				continue
+			}
+		case "mediaType":
+			if mapped, ok := normalizeReferenceMap(value, refs.MediaTypes); ok {
+				out[normalizedKey] = mapped
+				continue
+			}
+		case "memberType":
+			if mapped, ok := normalizeReferenceMap(value, refs.MemberTypes); ok {
+				out[normalizedKey] = mapped
+				continue
+			}
+		case "masterTemplate":
+			if mapped, ok := normalizeReferenceMap(value, refs.Templates); ok {
 				out[normalizedKey] = mapped
 				continue
 			}
@@ -350,10 +380,20 @@ func parseSchemaDiffEntities(raw string) ([]schemaDiffEntityKind, error) {
 			kind = schemaDiffDoctype
 		case "datatype", "data-type", "data_type":
 			kind = schemaDiffDatatype
+		case "mediatype", "media-type", "media_type":
+			kind = schemaDiffMediatype
+		case "membertype", "member-type", "member_type":
+			kind = schemaDiffMembertype
+		case "template", "templates":
+			kind = schemaDiffTemplate
+		case "language", "languages", "lang":
+			kind = schemaDiffLanguage
+		case "dictionary":
+			kind = schemaDiffDictionary
 		case "":
 			continue
 		default:
-			return nil, fmt.Errorf("unknown schema diff entity %q; use doctype, datatype", strings.TrimSpace(part))
+			return nil, fmt.Errorf("unknown schema diff entity %q; use doctype, datatype, mediatype, membertype, template, language, dictionary", strings.TrimSpace(part))
 		}
 		if _, ok := seen[kind]; ok {
 			continue
@@ -362,7 +402,7 @@ func parseSchemaDiffEntities(raw string) ([]schemaDiffEntityKind, error) {
 		entities = append(entities, kind)
 	}
 	if len(entities) == 0 {
-		return nil, fmt.Errorf("--entity must include doctype or datatype")
+		return nil, fmt.Errorf("--entity must include at least one of doctype, datatype, mediatype, membertype, template, language, dictionary")
 	}
 	return entities, nil
 }
