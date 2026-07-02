@@ -417,13 +417,13 @@ func TestDocumentChildrenResolveDoctypeFetchesEachTypeOnce(t *testing.T) {
 	doctypeFetches := 0
 	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
 		return tokenOr404(t, req, func(req *http.Request) (*http.Response, error) {
-			switch {
-			case req.URL.Path == "/umbraco/management/api/v1/tree/document/children":
+			switch req.URL.Path {
+			case "/umbraco/management/api/v1/tree/document/children":
 				return endpointJSONResponse(http.StatusOK, `{"total":2,"items":[
 					{"id":"a","documentType":{"id":"dt-1","icon":"icon-doc"},"variants":[{"name":"A"}]},
 					{"id":"b","documentType":{"id":"dt-1","icon":"icon-doc"},"variants":[{"name":"B"}]}
 				]}`), nil
-			case req.URL.Path == "/umbraco/management/api/v1/document-type/dt-1":
+			case "/umbraco/management/api/v1/document-type/dt-1":
 				doctypeFetches++
 				return endpointJSONResponse(http.StatusOK, `{"id":"dt-1","alias":"contentPage"}`), nil
 			default:

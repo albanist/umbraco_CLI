@@ -86,7 +86,7 @@ var recipes = []Recipe{
 func renderRecipeSkill(recipe Recipe, version string) string {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf(`---
+	fmt.Fprintf(&b, `---
 name: recipe-%s
 description: "%s"
 metadata:
@@ -95,30 +95,30 @@ metadata:
     bins:
       - umbraco
     skills:
-`, recipe.Name, escapeYAML(recipe.Description), version))
+`, recipe.Name, escapeYAML(recipe.Description), version)
 
 	for _, svc := range recipe.Services {
-		b.WriteString(fmt.Sprintf("      - %s\n", svc))
+		fmt.Fprintf(&b, "      - %s\n", svc)
 	}
 	b.WriteString("---\n\n")
 
-	b.WriteString(fmt.Sprintf("# %s\n\n", recipe.Title))
+	fmt.Fprintf(&b, "# %s\n\n", recipe.Title)
 
-	b.WriteString(fmt.Sprintf("> **PREREQUISITE:** Load the following skills: %s\n\n",
-		strings.Join(recipe.Services, ", ")))
+	fmt.Fprintf(&b, "> **PREREQUISITE:** Load the following skills: %s\n\n",
+		strings.Join(recipe.Services, ", "))
 
-	b.WriteString(fmt.Sprintf("%s\n\n", recipe.Description))
+	fmt.Fprintf(&b, "%s\n\n", recipe.Description)
 
 	b.WriteString("## Steps\n\n")
 	for i, step := range recipe.Steps {
-		b.WriteString(fmt.Sprintf("%d. `%s`\n", i+1, step))
+		fmt.Fprintf(&b, "%d. `%s`\n", i+1, step)
 	}
 	b.WriteString("\n")
 
 	if len(recipe.Tips) > 0 {
 		b.WriteString("## Tips\n\n")
 		for _, tip := range recipe.Tips {
-			b.WriteString(fmt.Sprintf("- %s\n", tip))
+			fmt.Fprintf(&b, "- %s\n", tip)
 		}
 		b.WriteString("\n")
 	}

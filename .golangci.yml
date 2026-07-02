@@ -1,0 +1,27 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # Correctness
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    # Hygiene
+    - misspell
+    - unconvert
+  settings:
+    errcheck:
+      # This CLI prints to stdout/stderr/string builders; Fprint-family write
+      # errors there are not actionable. Everything else (file ops, API
+      # calls, encoders, Close) stays checked.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+
+formatters:
+  enable:
+    - gofmt
