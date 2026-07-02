@@ -50,6 +50,8 @@ func buildRootWithCollections(t *testing.T, deps Dependencies) *cobra.Command {
 	RegisterPublishedCache(root, deps)
 	RegisterRedirect(root, deps)
 	RegisterIndexer(root, deps)
+	RegisterMediaType(root, deps)
+	RegisterMemberType(root, deps)
 	RegisterTree(root, deps)
 	RegisterAPI(root, deps)
 	RegisterAuth(root, deps)
@@ -100,8 +102,8 @@ func TestCommandCountsMatchMVP(t *testing.T) {
 		total += len(found.Commands())
 	}
 
-	if total != 177 {
-		t.Fatalf("expected 177 collection commands, got %d", total)
+	if total != 193 {
+		t.Fatalf("expected 193 collection commands, got %d", total)
 	}
 }
 
@@ -174,6 +176,8 @@ func TestRegisteredAPICommandsHaveSchemas(t *testing.T) {
 		"language":       {},
 		"user":           {},
 		"user-group":     {},
+		"mediatype":      {},
+		"membertype":     {},
 	}
 	convenienceCommands := map[string]string{
 		"document.bulk-update":      "batch convenience command",
