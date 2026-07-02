@@ -16,6 +16,7 @@ var ExpectedCollectionCommandCounts = map[string]int{
 	"health":          4,
 	"published-cache": 3,
 	"redirect":        6,
+	"indexer":         3,
 	"tree":            1,
 	"auth":            5,
 	"webhook":         7,
