@@ -276,8 +276,8 @@ func documentPublicAccessRemove(deps Dependencies) *cobra.Command {
 		Short: "Remove the public-access rules from a document (makes it publicly visible again)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !force && !dryRun {
-				return fmt.Errorf("document public-access remove drops member protection; pass --force to confirm or --dry-run to rehearse")
+			if err := requireForceOrDryRun(cmd, "drops member protection", force, dryRun); err != nil {
+				return err
 			}
 			result, err := deps.Client.Delete(cmd.Context(), api.JoinPath("/document/%s/public-access", args[0]), api.RequestOptions{DryRun: dryRun})
 			if err != nil {

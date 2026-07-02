@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
-	"umbraco-cli/internal/schema"
 )
 
 func RegisterUser(root *cobra.Command, deps Dependencies) {
@@ -60,68 +59,24 @@ func userGet(deps Dependencies) *cobra.Command {
 }
 
 func userCreate(deps Dependencies) *cobra.Command {
-	var jsonPayload string
-	var dryRun bool
-	var printTemplate bool
-	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a backoffice user",
-		Long:  "POST /user. Required: email, userName, name, userGroupIds ([{\"id\":\"<guid>\"}] from 'user-group list'), kind (\"Default\" for humans, \"Api\" for credential-only API users). API-kind users get credentials via 'user client-credentials create'.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if printTemplate {
-				return printResult(cmd, deps, schema.Templates["user.create"])
-			}
-			if err := requireValue("--json", jsonPayload); err != nil {
-				return err
-			}
-			body, err := parsePayload(jsonPayload)
-			if err != nil {
-				return err
-			}
-			if _, err := ensurePayloadID(body); err != nil {
-				return err
-			}
-			result, err := deps.Client.Post(cmd.Context(), "/user", body, api.RequestOptions{DryRun: dryRun})
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, deps, createResult(result, body, "kind"))
-		},
-	}
-	cmd.Flags().StringVar(&jsonPayload, "json", "", "Create payload as JSON")
-	addDryRunFlag(cmd, &dryRun)
-	cmd.Flags().BoolVar(&printTemplate, "print-template", false, "Print an annotated JSON skeleton; substitute placeholders before passing to --json")
-	return cmd
+	return createCommand(deps, createSpec{
+		Use:         "create",
+		Short:       "Create a backoffice user",
+		Long:        "POST /user. Required: email, userName, name, userGroupIds ([{\"id\":\"<guid>\"}] from 'user-group list'), kind (\"Default\" for humans, \"Api\" for credential-only API users). API-kind users get credentials via 'user client-credentials create'.",
+		Path:        "/user",
+		TemplateKey: "user.create",
+		ResultKeys:  []string{"kind"},
+	})
 }
 
 func userInvite(deps Dependencies) *cobra.Command {
-	var jsonPayload string
-	var dryRun bool
-	cmd := &cobra.Command{
-		Use:   "invite",
-		Short: "Invite a user by email (they choose their own password)",
-		Long:  "POST /user/invite. Same required fields as 'user create' minus kind, plus an optional message included in the invitation email. Requires the server to have SMTP configured.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := requireValue("--json", jsonPayload); err != nil {
-				return err
-			}
-			body, err := parsePayload(jsonPayload)
-			if err != nil {
-				return err
-			}
-			if _, err := ensurePayloadID(body); err != nil {
-				return err
-			}
-			result, err := deps.Client.Post(cmd.Context(), "/user/invite", body, api.RequestOptions{DryRun: dryRun})
-			if err != nil {
-				return err
-			}
-			return printResult(cmd, deps, createResult(result, body))
-		},
-	}
-	cmd.Flags().StringVar(&jsonPayload, "json", "", "Invite payload as JSON")
-	addDryRunFlag(cmd, &dryRun)
-	return cmd
+	return createCommand(deps, createSpec{
+		Use:          "invite",
+		Short:        "Invite a user by email (they choose their own password)",
+		Long:         "POST /user/invite. Same required fields as 'user create' minus kind, plus an optional message included in the invitation email. Requires the server to have SMTP configured.",
+		Path:         "/user/invite",
+		PayloadUsage: "Invite payload as JSON",
+	})
 }
 
 func userUpdate(deps Dependencies) *cobra.Command {
@@ -313,8 +268,8 @@ func userClientCredentialsDelete(deps Dependencies) *cobra.Command {
 		Short: "Remove a client ID from an API user (revokes its access)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !force && !dryRun {
-				return fmt.Errorf("user client-credentials delete revokes API access; pass --force to confirm or --dry-run to rehearse")
+			if err := requireForceOrDryRun(cmd, "revokes API access", force, dryRun); err != nil {
+				return err
 			}
 			result, err := deps.Client.Delete(cmd.Context(), api.JoinPath("/user/%s/client-credentials/%s", args[0], args[1]), api.RequestOptions{DryRun: dryRun})
 			if err != nil {

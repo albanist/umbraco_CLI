@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
+	"umbraco-cli/internal/schema"
 )
 
 // This file holds the shared builders for the command shapes that repeat
@@ -415,6 +416,87 @@ func updateCommand(deps Dependencies, spec updateSpec) *cobra.Command {
 	return cmd
 }
 
+type createSpec struct {
+	Use   string
+	Short string
+	Long  string
+	// Path is the collection endpoint the payload is POSTed to.
+	Path string
+	// TemplateKey, when non-empty, wires --print-template to the schema
+	// template with this key.
+	TemplateKey string
+	// PayloadUsage overrides the --json flag help text.
+	PayloadUsage string
+	// Normalize, when non-nil, adjusts or rejects the parsed payload before
+	// the CLI ensures an id (input conveniences, shape rejection).
+	Normalize func(map[string]any) error
+	// Flags, when non-nil, registers extra convenience flags on the command
+	// and returns a hook applied to the parsed payload after Normalize.
+	Flags func(cmd *cobra.Command) func(map[string]any) error
+	// ResultKeys are extra payload fields echoed into the create result
+	// alongside the defaults (e.g. "icon", "kind").
+	ResultKeys []string
+}
+
+// createCommand builds a create mutation with the uniform contract:
+// required --json payload, optional --print-template skeleton, CLI-generated
+// id when omitted, and a create result echoing identity fields from the
+// payload when the server answers with an empty body.
+func createCommand(deps Dependencies, spec createSpec) *cobra.Command {
+	var jsonPayload string
+	var dryRun bool
+	var printTemplate bool
+	var applyFlags func(map[string]any) error
+	cmd := &cobra.Command{
+		Use:   spec.Use,
+		Short: spec.Short,
+		Long:  spec.Long,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if printTemplate {
+				return printResult(cmd, deps, schema.Templates[spec.TemplateKey])
+			}
+			if err := requireValue("--json", jsonPayload); err != nil {
+				return err
+			}
+			body, err := parsePayload(jsonPayload)
+			if err != nil {
+				return err
+			}
+			if spec.Normalize != nil {
+				if err := spec.Normalize(body); err != nil {
+					return err
+				}
+			}
+			if applyFlags != nil {
+				if err := applyFlags(body); err != nil {
+					return err
+				}
+			}
+			if _, err := ensurePayloadID(body); err != nil {
+				return err
+			}
+			result, err := deps.Client.Post(cmd.Context(), spec.Path, body, api.RequestOptions{DryRun: dryRun})
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, deps, createResult(result, body, spec.ResultKeys...))
+		},
+	}
+	payloadUsage := spec.PayloadUsage
+	if payloadUsage == "" {
+		payloadUsage = "Create payload as JSON"
+	}
+	cmd.Flags().StringVar(&jsonPayload, "json", "", payloadUsage)
+	addDryRunFlag(cmd, &dryRun)
+	if spec.TemplateKey != "" {
+		cmd.Flags().BoolVar(&printTemplate, "print-template", false, "Print an annotated JSON skeleton; substitute placeholders before passing to --json")
+	}
+	if spec.Flags != nil {
+		applyFlags = spec.Flags(cmd)
+	}
+	return cmd
+}
+
 // mutationCandidate is one method+path attempt for a mutation whose route
 // or HTTP method moved between Management API versions.
 type mutationCandidate struct {
@@ -522,8 +604,8 @@ func deleteCommand(deps Dependencies, spec deleteSpec) *cobra.Command {
 		Short: spec.Short,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !force && !dryRun {
-				return fmt.Errorf("%s permanently deletes; pass --force to confirm or --dry-run to rehearse", cmd.CommandPath())
+			if err := requireForceOrDryRun(cmd, "permanently deletes", force, dryRun); err != nil {
+				return err
 			}
 			result, err := deps.Client.Delete(cmd.Context(), spec.Path(args), api.RequestOptions{DryRun: dryRun, APIPrefix: spec.APIPrefix})
 			if err != nil {

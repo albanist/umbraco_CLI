@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -220,8 +219,8 @@ func automateWorkspaceGroupRemove(deps Dependencies) *cobra.Command {
 		Short: "Remove an automation group from a workspace",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !force && !dryRun {
-				return fmt.Errorf("%s permanently deletes the group; pass --force to confirm or --dry-run to rehearse", cmd.CommandPath())
+			if err := requireForceOrDryRun(cmd, "permanently deletes the group", force, dryRun); err != nil {
+				return err
 			}
 			result, err := deps.Client.Delete(cmd.Context(), api.JoinPath("/workspaces/%s/groups/%s", args[0], args[1]), automateOpts(nil, dryRun))
 			if err != nil {

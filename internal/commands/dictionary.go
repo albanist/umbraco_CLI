@@ -224,8 +224,8 @@ func dictionaryDelete(deps Dependencies) *cobra.Command {
 		Short: "Delete a dictionary item by ID or key",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !force && !dryRun {
-				return fmt.Errorf("dictionary delete requires --force or --dry-run")
+			if err := requireForceOrDryRun(cmd, "permanently deletes", force, dryRun); err != nil {
+				return err
 			}
 
 			id, err := dictionaryResolveID(cmd.Context(), deps.Client, args, key)

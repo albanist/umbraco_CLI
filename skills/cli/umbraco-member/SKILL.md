@@ -48,9 +48,9 @@ umbraco member list
 | `--filter` | string | — | Substring filter against member username/email |
 | `--first-n` | int | 0 | Return only the first N items from item collections |
 | `--ids-only` | bool | false | Return only item IDs for item collections |
-| `--skip` | int | 0 | Skip count |
+| `--skip` | int | -1 | Skip count (passes through as ?skip=N; lets you walk past the server page size on large children/root collections) |
 | `--summarize` | bool | false | Return only id/name/alias fields for item collections |
-| `--take` | int | 0 | Take count (0 = server default) |
+| `--take` | int | -1 | Take count (passes through as ?take=N; combine with --skip to page) |
 
 ### search
 
@@ -64,7 +64,7 @@ umbraco member search <query>
 | `--first-n` | int | 0 | Return only the first N items from item collections |
 | `--ids-only` | bool | false | Return only item IDs for item collections |
 | `--summarize` | bool | false | Return only id/name/alias fields for item collections |
-| `--take` | int | 0 | Maximum results |
+| `--take` | int | -1 | Maximum results (passes through as ?take=N) |
 
 ## Mutation Commands
 

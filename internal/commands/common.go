@@ -249,3 +249,13 @@ func decodeResult[T any](raw any) (T, error) {
 	}
 	return result, nil
 }
+
+// requireForceOrDryRun gates destructive commands behind explicit intent:
+// the caller must rehearse with --dry-run or confirm with --force. reason
+// names the consequence (e.g. "permanently deletes").
+func requireForceOrDryRun(cmd *cobra.Command, reason string, force bool, dryRun bool) error {
+	if force || dryRun {
+		return nil
+	}
+	return fmt.Errorf("%s %s; pass --force to confirm or --dry-run to rehearse", cmd.CommandPath(), reason)
+}

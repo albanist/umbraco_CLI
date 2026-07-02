@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
-	"umbraco-cli/internal/schema"
 )
 
 func RegisterMedia(root *cobra.Command, deps Dependencies) {
@@ -100,33 +99,12 @@ func mediaURLs(deps Dependencies) *cobra.Command {
 }
 
 func mediaCreate(deps Dependencies) *cobra.Command {
-	var jsonPayload string
-	var dryRun bool
-	var printTemplate bool
-	cmd := &cobra.Command{Use: "create", Short: "Create media from JSON payload", RunE: func(cmd *cobra.Command, args []string) error {
-		if printTemplate {
-			return printResult(cmd, deps, schema.Templates["media.create"])
-		}
-		if err := requireValue("--json", jsonPayload); err != nil {
-			return err
-		}
-		body, err := parsePayload(jsonPayload)
-		if err != nil {
-			return err
-		}
-		if _, err := ensurePayloadID(body); err != nil {
-			return err
-		}
-		result, err := deps.Client.Post(cmd.Context(), "/media", body, api.RequestOptions{DryRun: dryRun})
-		if err != nil {
-			return err
-		}
-		return printResult(cmd, deps, createResult(result, body))
-	}}
-	cmd.Flags().StringVar(&jsonPayload, "json", "", "Create payload as JSON")
-	addDryRunFlag(cmd, &dryRun)
-	cmd.Flags().BoolVar(&printTemplate, "print-template", false, "Print an annotated JSON skeleton; substitute placeholders before passing to --json")
-	return cmd
+	return createCommand(deps, createSpec{
+		Use:         "create",
+		Short:       "Create media from JSON payload",
+		Path:        "/media",
+		TemplateKey: "media.create",
+	})
 }
 
 func mediaUpload(deps Dependencies) *cobra.Command {
@@ -402,18 +380,6 @@ func mediaTypeInfoFromMap(entry map[string]any) mediaTypeInfo {
 		info.VariesByCulture = varies
 	}
 	return info
-}
-
-func resultItems(result any) []any {
-	if payload, ok := result.(map[string]any); ok {
-		if items, ok := payload["items"].([]any); ok {
-			return items
-		}
-	}
-	if items, ok := result.([]any); ok {
-		return items
-	}
-	return nil
 }
 
 func isUUIDLike(value string) bool {

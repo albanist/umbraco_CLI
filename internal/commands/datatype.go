@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
-	"umbraco-cli/internal/schema"
 	"umbraco-cli/internal/validate"
 )
 
@@ -332,36 +331,15 @@ func datatypeIsUsed(deps Dependencies) *cobra.Command {
 }
 
 func datatypeCreate(deps Dependencies) *cobra.Command {
-	var jsonPayload string
-	var dryRun bool
-	var printTemplate bool
-	cmd := &cobra.Command{Use: "create", Short: "Create data type", Long: "POST /data-type. Editor settings go in the values array ([{alias, value}, ...]); a configuration map ({alias: value}) is accepted as a convenience and converted to values automatically.", RunE: func(cmd *cobra.Command, args []string) error {
-		if printTemplate {
-			return printResult(cmd, deps, schema.Templates["datatype.create"])
-		}
-		if err := requireValue("--json", jsonPayload); err != nil {
-			return err
-		}
-		body, err := parsePayload(jsonPayload)
-		if err != nil {
-			return err
-		}
-		if err := normalizeDatatypeConfiguration(body); err != nil {
-			return err
-		}
-		if _, err := ensurePayloadID(body); err != nil {
-			return err
-		}
-		result, err := deps.Client.Post(cmd.Context(), dataTypeLegacyCollectionPath, body, api.RequestOptions{DryRun: dryRun})
-		if err != nil {
-			return err
-		}
-		return printResult(cmd, deps, createResult(result, body, "editorAlias"))
-	}}
-	cmd.Flags().StringVar(&jsonPayload, "json", "", "Create payload as JSON")
-	addDryRunFlag(cmd, &dryRun)
-	cmd.Flags().BoolVar(&printTemplate, "print-template", false, "Print an annotated JSON skeleton; substitute placeholders before passing to --json")
-	return cmd
+	return createCommand(deps, createSpec{
+		Use:         "create",
+		Short:       "Create data type",
+		Long:        "POST /data-type. Editor settings go in the values array ([{alias, value}, ...]); a configuration map ({alias: value}) is accepted as a convenience and converted to values automatically.",
+		Path:        dataTypeLegacyCollectionPath,
+		TemplateKey: "datatype.create",
+		ResultKeys:  []string{"editorAlias"},
+		Normalize:   normalizeDatatypeConfiguration,
+	})
 }
 
 func datatypeUpdate(deps Dependencies) *cobra.Command {
