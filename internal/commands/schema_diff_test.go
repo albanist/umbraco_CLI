@@ -397,3 +397,43 @@ func TestSchemaDiffMediatypeMapsDataTypeReferences(t *testing.T) {
 		t.Fatalf("expected identical media types after datatype id normalization, got %s", out)
 	}
 }
+
+func TestSchemaDiffDictionaryDetectsParentMoves(t *testing.T) {
+	prepareSchemaDiffProfiles(t)
+	// Same key, same translations — but on live it moved under a different
+	// parent. Only the overview response carries the parent relationship.
+	deps := schemaDiffTestDeps(func(req *http.Request) (*http.Response, error) {
+		dev := strings.Contains(req.URL.Host, "dev")
+		parentID, parentName := "dict-common", "Common"
+		if !dev {
+			parentID, parentName = "dict-forms", "Forms"
+		}
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/dictionary":
+			return endpointJSONResponse(http.StatusOK, `{"items":[
+				{"id":"`+parentID+`","name":"`+parentName+`","parent":null},
+				{"id":"dict-greeting","name":"Greeting","parent":{"id":"`+parentID+`"}}
+			],"total":2}`), nil
+		case "/umbraco/management/api/v1/dictionary/dict-common", "/umbraco/management/api/v1/dictionary/dict-forms":
+			return endpointJSONResponse(http.StatusOK, `{"id":"`+parentID+`","name":"`+parentName+`","translations":[]}`), nil
+		case "/umbraco/management/api/v1/dictionary/dict-greeting":
+			return endpointJSONResponse(http.StatusOK, `{"id":"dict-greeting","name":"Greeting","translations":[{"isoCode":"en-US","translation":"Hello"}]}`), nil
+		default:
+			return endpointJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	out, err := execute(buildRootWithCollections(t, deps), "schema", "diff", "dev", "live", "--entity", "dictionary", "--include", "Greeting", "--exit-zero")
+	if err != nil {
+		t.Fatalf("dictionary parent-move diff failed: %v", err)
+	}
+	payload := decodeSchemaDiffOutput(t, out)
+	if payload["equal"] == true {
+		t.Fatalf("expected parent move detected, got %s", out)
+	}
+	if !strings.Contains(out, "parentName") || !strings.Contains(out, "Forms") {
+		t.Fatalf("expected parentName delta Common -> Forms, got %s", out)
+	}
+}

@@ -239,7 +239,51 @@ func fetchSchemaDiffDictionary(ctx context.Context, client *api.Client) ([]map[s
 	if err != nil {
 		return nil, err
 	}
-	return fetchSchemaDiffDetails(ctx, client, "/dictionary/%s", resultItems(page))
+	overview := resultItems(page)
+
+	// Only the overview carries each item's parent; /dictionary/{id} returns
+	// just id/name/translations. Capture the tree relationship here so a key
+	// moved under a different parent is visible to the diff.
+	namesByID := map[string]string{}
+	parentIDByID := map[string]string{}
+	for _, item := range overview {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		id, _ := stringField(entry, "id")
+		if id == "" {
+			continue
+		}
+		if name, ok := stringField(entry, "name"); ok {
+			namesByID[id] = name
+		}
+		if parent, ok := entry["parent"].(map[string]any); ok {
+			if parentID, ok := stringField(parent, "id"); ok {
+				parentIDByID[id] = parentID
+			}
+		}
+	}
+
+	details, err := fetchSchemaDiffDetails(ctx, client, "/dictionary/%s", overview)
+	if err != nil {
+		return nil, err
+	}
+	// Reattach the parent by name (the cross-environment identity for
+	// dictionary items) — parent IDs differ across environments by nature.
+	for _, detail := range details {
+		id, _ := stringField(detail, "id")
+		parentID, ok := parentIDByID[id]
+		if !ok {
+			continue
+		}
+		if parentName := namesByID[parentID]; parentName != "" {
+			detail["parentName"] = parentName
+		} else {
+			detail["parentName"] = parentID
+		}
+	}
+	return details, nil
 }
 
 func fetchSchemaDiffDatatypes(ctx context.Context, client *api.Client) ([]map[string]any, error) {
