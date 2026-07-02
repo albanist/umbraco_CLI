@@ -382,18 +382,6 @@ func mediaTypeInfoFromMap(entry map[string]any) mediaTypeInfo {
 	return info
 }
 
-func resultItems(result any) []any {
-	if payload, ok := result.(map[string]any); ok {
-		if items, ok := payload["items"].([]any); ok {
-			return items
-		}
-	}
-	if items, ok := result.([]any); ok {
-		return items
-	}
-	return nil
-}
-
 func isUUIDLike(value string) bool {
 	value = strings.TrimSpace(value)
 	if len(value) != 36 {

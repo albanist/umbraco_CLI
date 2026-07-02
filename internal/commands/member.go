@@ -50,12 +50,7 @@ func memberList(deps Dependencies) *cobra.Command {
 			if strings.TrimSpace(filter) != "" {
 				params["filter"] = filter
 			}
-			if cmd.Flags().Changed("skip") {
-				params["skip"] = skip
-			}
-			if cmd.Flags().Changed("take") {
-				params["take"] = take
-			}
+			params = applyPaginationParams(params, skip, take)
 			result, err := deps.Client.Get(cmd.Context(), "/filter/member", api.RequestOptions{Fields: fields, Params: params})
 			if err != nil {
 				return err
@@ -65,8 +60,7 @@ func memberList(deps Dependencies) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&fields, "fields", "", "Limit response fields (defaults to all; pass id,username,email,... for agent-friendly summaries)")
 	cmd.Flags().StringVar(&filter, "filter", "", "Substring filter against member username/email")
-	cmd.Flags().IntVar(&skip, "skip", 0, "Skip count")
-	cmd.Flags().IntVar(&take, "take", 0, "Take count (0 = server default)")
+	addPaginationFlags(cmd, &skip, &take)
 	addReadTriageFlags(cmd, &triage)
 	return cmd
 }
@@ -81,7 +75,7 @@ func memberSearch(deps Dependencies) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			params := map[string]any{"filter": args[0]}
-			if cmd.Flags().Changed("take") {
+			if take >= 0 {
 				params["take"] = take
 			}
 			result, err := deps.Client.Get(cmd.Context(), "/filter/member", api.RequestOptions{Fields: fields, Params: params})
@@ -92,7 +86,7 @@ func memberSearch(deps Dependencies) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&fields, "fields", memberFilterDefaultFields, "Limit response fields (default surfaces login-diagnosis fields; pass empty string for full payload)")
-	cmd.Flags().IntVar(&take, "take", 0, "Maximum results")
+	cmd.Flags().IntVar(&take, "take", -1, "Maximum results (passes through as ?take=N)")
 	addReadTriageFlags(cmd, &triage)
 	return cmd
 }

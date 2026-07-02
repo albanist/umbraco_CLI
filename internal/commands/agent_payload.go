@@ -450,3 +450,15 @@ func cloneAnyMap(input map[string]any) map[string]any {
 	}
 	return output
 }
+
+func resultItems(result any) []any {
+	if payload, ok := result.(map[string]any); ok {
+		if items, ok := payload["items"].([]any); ok {
+			return items
+		}
+	}
+	if items, ok := result.([]any); ok {
+		return items
+	}
+	return nil
+}
