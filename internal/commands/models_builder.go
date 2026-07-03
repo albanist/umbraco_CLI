@@ -37,6 +37,7 @@ func modelsBuilderDashboard(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dashboard",
 		Short: "Get dashboard: mode, modelsNamespace, outOfDate flag, last error",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := deps.Client.Get(cmd.Context(), "/models-builder/dashboard", api.RequestOptions{Fields: fields})
 			if err != nil {
@@ -53,6 +54,7 @@ func modelsBuilderStatus(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Get out-of-date status: Current | OutOfDate | Unknown",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := deps.Client.Get(cmd.Context(), "/models-builder/status", api.RequestOptions{})
 			if err != nil {
@@ -73,6 +75,7 @@ func modelsBuilderBuild(deps Dependencies) *cobra.Command {
 		Use:   "build",
 		Short: "Trigger source generation (SourceCodeManual / SourceCodeAuto only)",
 		Long:  "POSTs to /models-builder/build. Pre-checks the dashboard mode so non-source-generating modes (InMemory, Nothing) fail with a clear message instead of an opaque server error. With --wait, polls status until Current or --timeout elapses. --dry-run runs the dashboard/mode pre-checks and returns the planned POST without triggering generation.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if dryRun && wait {
 				return fmt.Errorf("--dry-run does not trigger a build, so --wait has nothing to poll for; pass one or the other")

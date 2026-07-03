@@ -54,6 +54,7 @@ func RegisterSchema(root *cobra.Command, deps Dependencies) {
 	schemaCommand.AddCommand(&cobra.Command{
 		Use:   "list",
 		Short: "List schema endpoints",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return printResult(cmd, deps, map[string]any{"endpoints": schema.Endpoints})
 		},

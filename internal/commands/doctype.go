@@ -65,6 +65,7 @@ func doctypeList(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List document types (paginated; --skip/--take/--all)",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			params, err := parseParams(paramsRaw)
 			if err != nil {

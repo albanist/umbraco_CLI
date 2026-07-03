@@ -241,6 +241,7 @@ func searchCommand(deps Dependencies, spec searchSpec) *cobra.Command {
 		Use:   spec.Use,
 		Short: spec.Short,
 		Long:  spec.Long,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if spec.DocumentOutputTrim {
 				if err := validateDocumentOutputTrim(trim); err != nil {
@@ -451,6 +452,7 @@ func createCommand(deps Dependencies, spec createSpec) *cobra.Command {
 		Use:   spec.Use,
 		Short: spec.Short,
 		Long:  spec.Long,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if printTemplate {
 				return printResult(cmd, deps, schema.Templates[spec.TemplateKey])
@@ -651,6 +653,7 @@ func areReferencedCommand(deps Dependencies, resource string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "are-referenced",
 		Short: fmt.Sprintf("Bulk check: which of these %s IDs are referenced by something", resource),
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids := uniqueCSV(idsCSV)
 			if len(ids) == 0 {

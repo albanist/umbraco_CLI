@@ -22,6 +22,7 @@ func automateAutomationCreate(deps Dependencies) *cobra.Command {
 		Long: `POST /automations. Required: alias, name, workspaceId (from 'workspace list'), steps (the action sequence), connections (connection GUIDs used by the steps; [] for none). trigger defines what starts the flow; step aliases come from the catalogue commands.
 
 Creating leaves the automation as a draft -- 'automation publish <id>' makes it live. For building from an existing automation, prefer the export/validate/import round-trip.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if printTemplate {
 				return printResult(cmd, deps, schema.Templates["automate.automation.create"])

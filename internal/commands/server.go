@@ -17,7 +17,7 @@ func RegisterServer(root *cobra.Command, deps Dependencies) {
 }
 
 func readOnlyEndpoint(deps Dependencies, use string, short string, path string) *cobra.Command {
-	return &cobra.Command{Use: use, Short: short, RunE: func(cmd *cobra.Command, args []string) error {
+	return &cobra.Command{Use: use, Short: short, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		result, err := deps.Client.Get(cmd.Context(), path, api.RequestOptions{})
 		if err != nil {
 			return err
@@ -27,7 +27,7 @@ func readOnlyEndpoint(deps Dependencies, use string, short string, path string) 
 }
 
 func readOnlyEndpointWithFallback(deps Dependencies, use string, short string, paths ...string) *cobra.Command {
-	return &cobra.Command{Use: use, Short: short, RunE: func(cmd *cobra.Command, args []string) error {
+	return &cobra.Command{Use: use, Short: short, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		candidates := make([]getRequestCandidate, 0, len(paths))
 		for _, path := range paths {
 			candidates = append(candidates, getRequestCandidate{path: path, opts: api.RequestOptions{}})

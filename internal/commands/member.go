@@ -45,6 +45,7 @@ func memberList(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List members (paginated; use --filter for substring search)",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			params := map[string]any{}
 			if strings.TrimSpace(filter) != "" {

@@ -16,7 +16,7 @@ func RegisterHealth(root *cobra.Command, deps Dependencies) {
 }
 
 func healthGroups(deps Dependencies) *cobra.Command {
-	return &cobra.Command{Use: "groups", Short: "List health check groups", RunE: func(cmd *cobra.Command, args []string) error {
+	return &cobra.Command{Use: "groups", Short: "List health check groups", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		result, err := deps.Client.Get(cmd.Context(), "/health-check-group", api.RequestOptions{})
 		if err != nil {
 			return err

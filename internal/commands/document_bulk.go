@@ -21,6 +21,7 @@ func documentBulkUpdate(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bulk-update",
 		Short: "Update multiple documents from an explicit ID list",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireForceOrDryRun(cmd, "mutates every listed document", force, dryRun); err != nil {
 				return err
@@ -79,6 +80,7 @@ func documentCSVUpdate(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "csv-update",
 		Short: "Update multiple documents from a CSV file",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireForceOrDryRun(cmd, "mutates every document in the CSV", force, dryRun); err != nil {
 				return err

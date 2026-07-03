@@ -105,6 +105,7 @@ func userStateCommand(deps Dependencies, action string, short string, verb strin
 	cmd := &cobra.Command{
 		Use:   action + " --ids <id,...>",
 		Short: short,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids := uniqueCSV(idsCSV)
 			if len(ids) == 0 {
@@ -131,6 +132,7 @@ func userSetGroups(deps Dependencies) *cobra.Command {
 		Use:   "set-groups",
 		Short: "Replace the group memberships of one or more users",
 		Long:  "POST /user/set-user-groups. Replaces each listed user's groups with exactly the listed group set. Group GUIDs come from 'user-group list'.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			userIDs := uniqueCSV(userIDsCSV)
 			groupIDs := uniqueCSV(groupIDsCSV)
@@ -159,6 +161,7 @@ func userCurrent(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "current",
 		Short: "Get the user the CLI is authenticated as",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := deps.Client.Get(cmd.Context(), "/user/current", api.RequestOptions{Fields: fields})
 			if err != nil {
@@ -178,6 +181,7 @@ func userPermissions(deps Dependencies) *cobra.Command {
 		Use:   "permissions --ids <id,...>",
 		Short: "Check the current user's permissions on specific items",
 		Long:  "GET /user/current/permissions[/document|/media]. Lets an agent verify it may write or publish a node before issuing the mutation. --type selects the permission surface: entity (default), document, or media.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids := uniqueCSV(idsCSV)
 			if len(ids) == 0 {

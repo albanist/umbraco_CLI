@@ -42,6 +42,7 @@ func authLogin(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Store Umbraco API credentials in the user config after verifying them",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 			baseURL, err = promptIfEmpty(cmd, baseURL, "Base URL: ")
@@ -117,6 +118,7 @@ func authList(deps Dependencies) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List stored auth profiles without exposing secrets",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profiles, err := config.ListUserProfiles()
 			if err != nil {
@@ -187,6 +189,7 @@ func authStatus(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show the current auth/config status without exposing secrets",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			env := currentAuthEnv()
 			opts := deps.configOptions()
@@ -250,6 +253,7 @@ func authLogout(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logout",
 		Short: "Remove stored credentials from the user config",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, _, selection, err := config.LoadUserConfigWithOptions(deps.configOptions())
 			if err != nil {

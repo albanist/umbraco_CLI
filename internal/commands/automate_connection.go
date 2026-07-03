@@ -55,6 +55,7 @@ func automateConnectionCreate(deps Dependencies) *cobra.Command {
 		Use:   "create",
 		Short: "Create a connection",
 		Long:  "POST /connections. Required: alias, name, type (from 'catalogue connection-types'), settings (the type's credential fields). Verify it works afterwards with 'connection test'.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if printTemplate {
 				return printResult(cmd, deps, schema.Templates["automate.connection.create"])

@@ -87,6 +87,7 @@ func dictionaryList(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List dictionary items",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if skip < 0 {
 				return fmt.Errorf("--skip must be zero or greater")
@@ -156,6 +157,7 @@ func dictionaryCreate(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a dictionary item",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var body any
 
@@ -254,6 +256,7 @@ func dictionaryExport(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export all dictionary items to JSON",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			items, err := listAllDictionaryItems(ctx, deps.Client, "", 9999)

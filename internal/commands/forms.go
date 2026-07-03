@@ -110,6 +110,7 @@ func formsList(deps Dependencies) *cobra.Command {
 		Use:   "list",
 		Short: "List forms (tree root: returns folders and root-level forms)",
 		Long:  "Returns the Forms tree root. On real installs this is mostly folders — use 'forms children <folderId>' to drill into a folder returned with isFolder=true.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := getWithFallback(
 				cmd.Context(),
