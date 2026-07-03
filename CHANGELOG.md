@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- added `logs tail` for following new log entries as they arrive: the Management API has no streaming endpoint, so tail polls the log-viewer with a moving cursor, deduplicates boundary entries, and prints each entry exactly once — NDJSON per line for json output, formatted lines otherwise — with `--level`/`--source-context`/`--path`/`--contains`/`--correlation-id` filters, `--redact`/`--redact-default`, `--since`, `--interval`, and `--for` (bounded runs for agents; exits 0 on interrupt or elapse)
+
 ## v0.4.7 - 2026-07-02
 
 - removed the vendored extension-development skills bundle and its Node toolchain (a PoC-era aggregation of `umbraco/Umbraco-CMS-Backoffice-Skills` content): `skills/` now contains only the CLI-generated `skills/cli/`, the repo is pure Go with no Node.js requirement, and extension-development skills should be sourced from their upstream repo

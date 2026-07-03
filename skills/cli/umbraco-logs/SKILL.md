@@ -25,6 +25,7 @@ umbraco logs <command> [flags]
 | `logs level-count` | Get count per level |
 | `logs list` | List log entries |
 | `logs search` | Search logs |
+| `logs tail` | Follow new log entries as they arrive (client-side polling) |
 | `logs templates` | List paginated log message templates |
 
 ### level-count
@@ -92,6 +93,33 @@ umbraco logs search
 | `--source-context` | string | — | Client-side SourceContext contains filter |
 | `--take` | int | -1 | Take count |
 | `--to` | string | — | End date/time (ISO/RFC3339); enforced client-side |
+
+### tail
+
+```bash
+umbraco logs tail
+```
+
+The Management API has no streaming endpoint, so tail polls the log-viewer
+with a moving startDate cursor, deduplicates boundary entries, and prints
+each new entry exactly once: NDJSON (one JSON object per line) for json
+output, one formatted line per entry otherwise. Runs until interrupted or
+--for elapses; exits 0 on both.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--contains` | string | — | Only entries containing this substring anywhere |
+| `--correlation-id` | string | — | Only entries with this correlation/request id |
+| `--filter-expression` | string | — | Serilog filter expression (server-side) |
+| `--flat` | bool | false | Flatten entries (timestamp, level, message, sourceContext, ...) |
+| `--for` | duration | 0s | Stop after this duration (0 = run until interrupted); exits 0 |
+| `--interval` | duration | 2s | Poll interval |
+| `--level` | string | — | Only entries at this level (Verbose, Debug, Information, Warning, Error, Fatal) |
+| `--path` | string | — | Only entries whose RequestPath contains this value |
+| `--redact` | string | — | Redact matching value kinds: emails,secrets,tokens (comma-separated) |
+| `--redact-default` | bool | false | Apply the default redaction set (emails, secrets, tokens) |
+| `--since` | string | — | Start from this timestamp (RFC3339); default: now (only new entries) |
+| `--source-context` | string | — | Only entries whose SourceContext contains this value |
 
 ### templates
 
