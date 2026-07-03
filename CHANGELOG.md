@@ -3,6 +3,7 @@
 ## Unreleased
 
 - added `media restore` completing the media recycle-bin lifecycle: restores to the original parent by default (looked up via the recycle-bin API), `--to <parent-id>` overrides, `--to root` restores at the media root — the document restore logic generalized into one shared implementation for both resources
+- added `--wait`/`--timeout`/`--poll-interval` to `published-cache rebuild`, polling the rebuild status until `isRebuilding` clears — parity with `indexer rebuild --wait`
 
 - added `logs tail` for following new log entries as they arrive: the Management API has no streaming endpoint, so tail polls the log-viewer with a moving cursor, deduplicates boundary entries, and prints each entry exactly once — NDJSON per line for json output, formatted lines otherwise — with `--level`/`--source-context`/`--path`/`--contains`/`--correlation-id` filters, `--redact`/`--redact-default`, `--since`, `--interval`, and `--for` (bounded runs for agents; exits 0 on interrupt or elapse)
 
