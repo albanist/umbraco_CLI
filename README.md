@@ -1,6 +1,9 @@
 # Umbraco CLI (Agent-First)
 
-A Go-based CLI for the Umbraco Management API, designed for **agents first**.
+The agent-first command line for Umbraco — CMS, Forms, and Automate. Built on
+the Management APIs, it goes beyond them: exhaustive content search,
+cross-environment schema diff, log tailing, and safe, rehearsable bulk
+operations — 263 commands with a scriptable exit-code contract.
 
 Core behavior:
 - `--json` and `--params` are primary machine inputs
