@@ -42,6 +42,7 @@ func automateAutomationValidate(deps Dependencies) *cobra.Command {
 		Use:   "validate --workspace-id <id> --file <export.json>",
 		Short: "Validate a new automation import server-side without writing anything",
 		Long:  "POST /automations/import/validate. Checks an export model against a workspace -- step aliases, connection references, binding syntax -- and reports success/errors/warnings for creating/importing a new automation. It does not validate overwriting an existing automation; for edits use 'automation import-update <id> --dry-run' to preflight the update request shape.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireValue("--workspace-id", workspaceID); err != nil {
 				return err
@@ -73,6 +74,7 @@ func automateAutomationImport(deps Dependencies) *cobra.Command {
 		Use:   "import --workspace-id <id> --file <export.json>",
 		Short: "Import an automation definition as a new automation",
 		Long:  "POST /automations/import. Creates a new draft automation from an export model. Run 'automation validate' first -- it performs the same create/import checks without writing.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireValue("--workspace-id", workspaceID); err != nil {
 				return err

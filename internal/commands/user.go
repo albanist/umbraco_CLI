@@ -105,6 +105,7 @@ func userStateCommand(deps Dependencies, action string, short string, verb strin
 	cmd := &cobra.Command{
 		Use:   action + " --ids <id,...>",
 		Short: short,
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids := uniqueCSV(idsCSV)
 			if len(ids) == 0 {
@@ -180,6 +181,7 @@ func userPermissions(deps Dependencies) *cobra.Command {
 		Use:   "permissions --ids <id,...>",
 		Short: "Check the current user's permissions on specific items",
 		Long:  "GET /user/current/permissions[/document|/media]. Lets an agent verify it may write or publish a node before issuing the mutation. --type selects the permission surface: entity (default), document, or media.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids := uniqueCSV(idsCSV)
 			if len(ids) == 0 {

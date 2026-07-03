@@ -26,7 +26,13 @@ func TestLeafCommandsWithoutPositionalsRejectStrayArgs(t *testing.T) {
 				walk(child, childPath)
 				continue
 			}
+			// Only placeholders BEFORE the first flag token are positionals;
+			// "<...>"/"[...]" after "--flag" are flag metavars ("validate
+			// --file <export.json>") and declare nothing positional.
 			use := child.Use
+			if idx := strings.Index(use, " --"); idx >= 0 {
+				use = use[:idx]
+			}
 			if strings.ContainsAny(use, "<[") {
 				continue // declares positionals; arity is its own business
 			}
