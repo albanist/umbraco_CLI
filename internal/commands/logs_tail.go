@@ -13,8 +13,11 @@ import (
 	"umbraco-cli/internal/config"
 )
 
-// tailPageSize bounds each poll; bursts larger than one page are picked up
-// on the next poll because the cursor only advances past fetched entries.
+// tailPageSize bounds each poll. Polls request ascending order explicitly —
+// the log-viewer defaults to descending, which would return the newest page
+// of a large burst and advance the cursor past entries never fetched. With
+// ascending order the cursor only moves past fetched entries, and a full
+// page triggers an immediate re-poll to drain the burst.
 const tailPageSize = 500
 
 func logsTail(deps Dependencies) *cobra.Command {
@@ -86,9 +89,13 @@ output, one formatted line per entry otherwise. Runs until interrupted or
 			}
 
 			for {
+				if !deadline.IsZero() && time.Now().After(deadline) {
+					return nil
+				}
 				params := copyAnyMap(baseParams)
 				params["startDate"] = cursor.Format(time.RFC3339)
 				params["take"] = tailPageSize
+				params["orderDirection"] = "Ascending"
 				result, err := getWithFallback(ctx, deps.Client,
 					getRequestCandidate{path: logViewerLogPath, opts: api.RequestOptions{Params: params}},
 					getRequestCandidate{path: logViewerLegacyListPath, opts: api.RequestOptions{Params: params}},
@@ -105,8 +112,10 @@ output, one formatted line per entry otherwise. Runs until interrupted or
 					entry map[string]any
 					ts    time.Time
 				}
+				items := resultItems(result)
+				fullPage := len(items) >= tailPageSize
 				fresh := make([]stampedEntry, 0)
-				for _, item := range resultItems(result) {
+				for _, item := range items {
 					entry, ok := item.(map[string]any)
 					if !ok {
 						continue
@@ -147,13 +156,30 @@ output, one formatted line per entry otherwise. Runs until interrupted or
 					cursor = nextCursor
 				}
 
-				if !deadline.IsZero() && time.Now().After(deadline) {
-					return nil
+				if fullPage {
+					// More of the burst is likely waiting; drain it now
+					// instead of sleeping through it.
+					select {
+					case <-ctx.Done():
+						return nil
+					default:
+						continue
+					}
+				}
+				// Never sleep past the --for deadline.
+				wait := interval
+				if !deadline.IsZero() {
+					if remaining := time.Until(deadline); remaining < wait {
+						wait = remaining
+					}
+				}
+				if wait <= 0 {
+					continue
 				}
 				select {
 				case <-ctx.Done():
 					return nil
-				case <-time.After(interval):
+				case <-time.After(wait):
 				}
 			}
 		},

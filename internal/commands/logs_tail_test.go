@@ -2,6 +2,7 @@ package commands
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -134,5 +135,52 @@ func TestLogsTailRejectsInvalidSince(t *testing.T) {
 
 	if _, err := execute(buildLogsRoot(deps), "logs", "tail", "--since", "not-a-time", "--for", "10ms"); err == nil || !strings.Contains(err.Error(), "invalid --since") {
 		t.Fatalf("expected invalid --since error, got %v", err)
+	}
+}
+
+func TestLogsTailRequestsAscendingOrderAndDrainsBursts(t *testing.T) {
+	// A burst larger than one page: the first poll returns a full ascending
+	// page; the cursor must advance only past fetched entries so the second
+	// poll picks up the remainder instead of skipping it.
+	burstPage := func(start, count int) string {
+		var b strings.Builder
+		b.WriteString(`{"items":[`)
+		for i := 0; i < count; i++ {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			fmt.Fprintf(&b, `{"timestamp":"2026-07-03T10:%02d:%02dZ","level":"Information","renderedMessage":"entry-%d"}`, (start+i)/60, (start+i)%60, start+i)
+		}
+		fmt.Fprintf(&b, `],"total":%d}`, count)
+		return b.String()
+	}
+
+	var orderDirections []string
+	var startDates []string
+	deps := logsTailDeps(func(poll int64, req *http.Request) (*http.Response, error) {
+		orderDirections = append(orderDirections, req.URL.Query().Get("orderDirection"))
+		startDates = append(startDates, req.URL.Query().Get("startDate"))
+		if poll == 1 {
+			return endpointJSONResponse(http.StatusOK, burstPage(1, tailPageSize)), nil
+		}
+		return endpointJSONResponse(http.StatusOK, burstPage(tailPageSize, 3)), nil
+	})
+
+	out, err := execute(buildLogsRoot(deps), "logs", "tail", "--since", "2026-07-03T10:00:00Z", "--interval", "1h", "--for", "50ms")
+	if err != nil {
+		t.Fatalf("logs tail failed: %v", err)
+	}
+	for _, direction := range orderDirections {
+		if direction != "Ascending" {
+			t.Fatalf("expected every poll to request ascending order, got %v", orderDirections)
+		}
+	}
+	if len(startDates) < 2 {
+		t.Fatalf("expected the full page to trigger an immediate drain poll despite the 1h interval, got %d polls", len(startDates))
+	}
+	printed := strings.Count(out, "entry-")
+	if printed != tailPageSize+2 {
+		// entry-500 appears in both pages (boundary) and must print once.
+		t.Fatalf("expected %d unique entries printed, got %d", tailPageSize+2, printed)
 	}
 }
