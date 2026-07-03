@@ -45,12 +45,15 @@ umbraco published-cache status
 umbraco published-cache rebuild
 ```
 
-POST /published-cache/rebuild. Rebuilds the published content cache from the database — the standard fix for stale published content. Expensive on large sites; poll 'published-cache status' to see when the rebuild finishes.
+POST /published-cache/rebuild. Rebuilds the published content cache from the database — the standard fix for stale published content. Expensive on large sites; with --wait, polls the rebuild status until isRebuilding clears or --timeout elapses (mirroring 'indexer rebuild --wait').
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--dry-run` | bool | false | Print the planned request without executing |
 | `--force` | bool | false | Confirm the rebuild |
+| `--poll-interval` | duration | 1s | How often to poll when --wait is set |
+| `--timeout` | duration | 1m0s | How long to wait when --wait is set (e.g. 30s, 2m) |
+| `--wait` | bool | false | Poll the rebuild status after triggering until isRebuilding clears or --timeout elapses |
 
 **Safe pattern:**
 

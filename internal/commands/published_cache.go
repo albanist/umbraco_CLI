@@ -1,6 +1,9 @@
 package commands
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
@@ -17,25 +20,73 @@ func RegisterPublishedCache(root *cobra.Command, deps Dependencies) {
 func publishedCacheRebuild(deps Dependencies) *cobra.Command {
 	var force bool
 	var dryRun bool
+	var wait bool
+	var timeout time.Duration
+	var pollInterval time.Duration
 	cmd := &cobra.Command{
 		Use:   "rebuild",
 		Short: "Rebuild the published content cache from the database",
-		Long:  "POST /published-cache/rebuild. Rebuilds the published content cache from the database — the standard fix for stale published content. Expensive on large sites; poll 'published-cache status' to see when the rebuild finishes.",
+		Long:  "POST /published-cache/rebuild. Rebuilds the published content cache from the database — the standard fix for stale published content. Expensive on large sites; with --wait, polls the rebuild status until isRebuilding clears or --timeout elapses (mirroring 'indexer rebuild --wait').",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireForceOrDryRun(cmd, "rebuilds the entire published cache and is expensive on large sites", force, dryRun); err != nil {
 				return err
 			}
-			result, err := deps.Client.Post(cmd.Context(), "/published-cache/rebuild", nil, api.RequestOptions{DryRun: dryRun})
+			if dryRun && wait {
+				return fmt.Errorf("--dry-run does not trigger a rebuild, so --wait has nothing to poll for; pass one or the other")
+			}
+
+			ctx := cmd.Context()
+			result, err := deps.Client.Post(ctx, "/published-cache/rebuild", nil, api.RequestOptions{DryRun: dryRun})
 			if err != nil {
 				return err
 			}
-			return printMutationResult(cmd, deps, "rebuilding", result, dryRun)
+			if !wait {
+				return printMutationResult(cmd, deps, "rebuilding", result, dryRun)
+			}
+
+			deadline := time.Now().Add(timeout)
+			for {
+				statusPayload, err := deps.Client.Get(ctx, "/published-cache/rebuild/status", api.RequestOptions{})
+				if err != nil {
+					return fmt.Errorf("polling rebuild status failed: %w", err)
+				}
+				rebuilding, known := publishedCacheIsRebuilding(statusPayload)
+				if known && !rebuilding {
+					return printResult(cmd, deps, map[string]any{
+						"rebuilt": true,
+						"waited":  time.Since(deadline.Add(-timeout)).String(),
+					})
+				}
+				if time.Now().After(deadline) {
+					return fmt.Errorf("published cache was still rebuilding after %s; try increasing --timeout or check 'published-cache status'", timeout)
+				}
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(pollInterval):
+				}
+			}
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "Confirm the rebuild")
 	addDryRunFlag(cmd, &dryRun)
+	cmd.Flags().BoolVar(&wait, "wait", false, "Poll the rebuild status after triggering until isRebuilding clears or --timeout elapses")
+	cmd.Flags().DurationVar(&timeout, "timeout", 60*time.Second, "How long to wait when --wait is set (e.g. 30s, 2m)")
+	cmd.Flags().DurationVar(&pollInterval, "poll-interval", time.Second, "How often to poll when --wait is set")
 	return cmd
+}
+
+// publishedCacheIsRebuilding reads the modern status shape
+// {"isRebuilding": bool}; the second return reports whether the payload was
+// understood at all (older servers return a plain string here).
+func publishedCacheIsRebuilding(payload any) (bool, bool) {
+	object, ok := payload.(map[string]any)
+	if !ok {
+		return false, false
+	}
+	rebuilding, ok := object["isRebuilding"].(bool)
+	return rebuilding, ok
 }
 
 func publishedCacheReload(deps Dependencies) *cobra.Command {
