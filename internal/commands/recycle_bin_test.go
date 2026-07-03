@@ -156,3 +156,59 @@ func TestBinEmptyRejectsStrayArguments(t *testing.T) {
 		t.Fatalf("expected stray argument rejection, got %v", err)
 	}
 }
+
+func TestMediaRestoreDefaultsToOriginalParent(t *testing.T) {
+	var requests []string
+	var putBody string
+	deps := binDeps(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.Path)
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/recycle-bin/media/trashed-1/original-parent":
+			return endpointJSONResponse(http.StatusOK, `{"id":"folder-9"}`), nil
+		case "/umbraco/management/api/v1/recycle-bin/media/trashed-1/restore":
+			body, _ := io.ReadAll(req.Body)
+			putBody = string(body)
+			return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
+		default:
+			return endpointJSONResponse(http.StatusNotFound, `{"error":"not found"}`), nil
+		}
+	})
+
+	out, err := execute(buildBinRoot(deps), "media", "restore", "trashed-1")
+	if err != nil {
+		t.Fatalf("media restore failed: %v", err)
+	}
+	if !strings.Contains(putBody, `"folder-9"`) {
+		t.Fatalf("expected original parent as restore target, got %s", putBody)
+	}
+	if !strings.Contains(out, `"restored": true`) && !strings.Contains(out, `"restored":true`) {
+		t.Fatalf("expected restored:true, got %s", out)
+	}
+	if requests[len(requests)-1] != "PUT /umbraco/management/api/v1/recycle-bin/media/trashed-1/restore" {
+		t.Fatalf("expected modern restore route, got %v", requests)
+	}
+}
+
+func TestMediaRestoreToRootSkipsParentLookup(t *testing.T) {
+	var putBody string
+	lookups := 0
+	deps := binDeps(func(req *http.Request) (*http.Response, error) {
+		if strings.HasSuffix(req.URL.Path, "/original-parent") {
+			lookups++
+			return endpointJSONResponse(http.StatusOK, `{"id":"should-not-be-used"}`), nil
+		}
+		body, _ := io.ReadAll(req.Body)
+		putBody = string(body)
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
+	})
+
+	if _, err := execute(buildBinRoot(deps), "media", "restore", "trashed-1", "--to", "root"); err != nil {
+		t.Fatalf("media restore --to root failed: %v", err)
+	}
+	if lookups != 0 {
+		t.Fatalf("expected no original-parent lookup with --to root")
+	}
+	if !strings.Contains(putBody, `"target":null`) {
+		t.Fatalf("expected null target for root restore, got %s", putBody)
+	}
+}

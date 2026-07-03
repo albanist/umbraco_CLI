@@ -200,6 +200,7 @@ umbraco media urls <id>
 | `media create` | Create media from JSON payload |
 | `media create-folder [name]` | Create media folder |
 | `media move <id>` | Move media item |
+| `media restore <id>` | Restore a media item from the recycle bin |
 | `media trash <id>` | Move media item to recycle bin |
 | `media update <id>` | Update media item |
 | `media upload <file>` | Upload a file and create a media item |
@@ -314,6 +315,29 @@ umbraco media move <id> --dry-run
 
 # 2. Execute
 umbraco media move <id>
+```
+
+### restore
+
+```bash
+umbraco media restore <id>
+```
+
+PUT /recycle-bin/media/{id}/restore. The restore target defaults to the item's original parent (looked up via the recycle-bin API); pass --to for a different parent, or --to root to restore at the media root.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--dry-run` | bool | false | Print the planned request without executing |
+| `--to` | string | — | Restore target parent ID, or 'root' (defaults to the original parent) |
+
+**Safe pattern:**
+
+```bash
+# 1. Dry run first
+umbraco media restore <id> --dry-run
+
+# 2. Execute
+umbraco media restore <id>
 ```
 
 ### trash

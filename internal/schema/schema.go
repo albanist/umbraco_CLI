@@ -294,6 +294,7 @@ var endpointBindings = map[string]endpointBinding{
 	"document.bin.original-parent": {Method: "GET", Path: "/recycle-bin/document/{id}/original-parent"},
 	"document.bin.delete":          {Method: "DELETE", Path: "/recycle-bin/document/{id}"},
 	"document.bin.empty":           {Method: "DELETE", Path: "/recycle-bin/document"},
+	"media.restore":                {Method: "PUT", Path: "/recycle-bin/media/{id}/restore"},
 	"media.bin.list":               {Method: "GET", Path: "/recycle-bin/media/root"},
 	"media.bin.children":           {Method: "GET", Path: "/recycle-bin/media/children"},
 	"media.bin.original-parent":    {Method: "GET", Path: "/recycle-bin/media/{id}/original-parent"},

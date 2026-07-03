@@ -333,7 +333,7 @@ umbraco document version list <document-id>
 | `document public-access set <id>` | Create or replace the public-access rules on a document |
 | `document publish <id>` | Publish a document |
 | `document publish-descendants <id>` | Publish a document and its entire subtree |
-| `document restore <id>` | Restore a document from the recycle bin |
+| `document restore <id>` | Restore a document item from the recycle bin |
 | `document sort` | Reorder sibling documents |
 | `document trash <id>` | Move a document to recycle bin |
 | `document unpublish <id>` | Unpublish a document |
@@ -632,7 +632,7 @@ umbraco document publish-descendants <id>
 umbraco document restore <id>
 ```
 
-PUT /recycle-bin/document/{id}/restore. The restore target defaults to the document's original parent (looked up via the recycle-bin API); pass --to for a different parent, or --to root to restore at the content root.
+PUT /recycle-bin/document/{id}/restore. The restore target defaults to the item's original parent (looked up via the recycle-bin API); pass --to for a different parent, or --to root to restore at the content root.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
