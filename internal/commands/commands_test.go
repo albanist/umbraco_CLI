@@ -102,8 +102,8 @@ func TestCommandCountsMatchMVP(t *testing.T) {
 		total += len(found.Commands())
 	}
 
-	if total != 193 {
-		t.Fatalf("expected 193 collection commands, got %d", total)
+	if total != 194 {
+		t.Fatalf("expected 194 collection commands, got %d", total)
 	}
 }
 
@@ -194,6 +194,7 @@ func TestRegisteredAPICommandsHaveSchemas(t *testing.T) {
 		"member.update-properties":  "payload mutation convenience command (shares the values[] parser with document update-properties)",
 		"member.set-groups":         "idempotent convenience over PUT /member/{id} mutating the groups[] array",
 		"logs.levels":               "hidden compatibility stub for removed v17 endpoint",
+		"logs.tail":                 "client-side polling composite over the log-viewer list endpoint",
 		"document.version":          "version history subgroup (list/get/rollback/prevent-cleanup)",
 		"document.domains":          "culture domains subgroup (get/set)",
 		"document.public-access":    "member protection subgroup (get/set/remove)",

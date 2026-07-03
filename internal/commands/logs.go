@@ -23,6 +23,7 @@ func RegisterLogs(root *cobra.Command, deps Dependencies) {
 	logs.AddCommand(logsLevelCount(deps))
 	logs.AddCommand(logsTemplates(deps))
 	logs.AddCommand(logsSearch(deps))
+	logs.AddCommand(logsTail(deps))
 	root.AddCommand(logs)
 }
 
