@@ -80,7 +80,7 @@ func datatypeSearch(deps Dependencies) *cobra.Command {
 	var editorAlias string
 	var skip int
 	var take int
-	cmd := &cobra.Command{Use: "search", Short: "Search data types", RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "search", Short: "Search data types", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		userTakeSet := cmd.Flags().Changed("take")
 		params, err := parseParams(paramsRaw)

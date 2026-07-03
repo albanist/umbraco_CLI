@@ -51,6 +51,7 @@ func webhookCreate(deps Dependencies) *cobra.Command {
 		Use:   "create",
 		Short: "Create a webhook",
 		Long:  "POST /webhook. Required fields: url, events (aliases from 'webhook events'), enabled, contentTypeKeys (empty array = all content types), headers (empty object = none). Use --print-template for the payload shape.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if printTemplate {
 				return printResult(cmd, deps, schema.Templates["webhook.create"])

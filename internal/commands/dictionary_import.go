@@ -62,6 +62,7 @@ func dictionaryImport(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import",
 		Short: "Import dictionary items from JSON",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireValue("--file", file); err != nil {
 				return err

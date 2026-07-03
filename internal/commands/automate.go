@@ -38,7 +38,7 @@ func automateOpts(params map[string]any, dryRun bool) api.RequestOptions {
 // that return bare arrays (no {items,total} envelope, no pagination).
 func automateArrayRead(deps Dependencies, use string, short string, path string) *cobra.Command {
 	var fields string
-	cmd := &cobra.Command{Use: use, Short: short, RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: use, Short: short, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		result, err := deps.Client.Get(cmd.Context(), path, automateOpts(nil, false))
 		if err != nil {
 			return err
@@ -72,7 +72,7 @@ func automateCatalogue(deps Dependencies) *cobra.Command {
 func automateCatalogueScoped(deps Dependencies, use string, short string, path string) *cobra.Command {
 	var fields string
 	var workspaceID string
-	cmd := &cobra.Command{Use: use, Short: short, RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: use, Short: short, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		var params map[string]any
 		if workspaceID != "" {
 			params = map[string]any{"workspaceId": workspaceID}
@@ -91,7 +91,7 @@ func automateCatalogueScoped(deps Dependencies, use string, short string, path s
 func automateCatalogueStepTypes(deps Dependencies) *cobra.Command {
 	var fields string
 	var stepType string
-	cmd := &cobra.Command{Use: "step-types", Short: "List step types, optionally filtered by kind", RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "step-types", Short: "List step types, optionally filtered by kind", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		var params map[string]any
 		if stepType != "" {
 			params = map[string]any{"type": stepType}
@@ -134,6 +134,7 @@ func automateCatalogueOperators(deps Dependencies) *cobra.Command {
 		Use:   "operators",
 		Short: "List condition/filter operators for automation export models",
 		Long:  "Lists the ConditionOperator values accepted by automation export/import/update payloads. Use the string in the operator field, e.g. {\"operator\":\"NotEquals\"}; Deploy .uda files use integer Operator values, exposed here only as a mapping aid.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return printResult(cmd, deps, applyFieldsProjection(automateConditionOperators, fields))
 		},
@@ -364,7 +365,7 @@ func automateMetricsRead(deps Dependencies, use string, short string, path strin
 	var from string
 	var to string
 	var take int
-	cmd := &cobra.Command{Use: use, Short: short, RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: use, Short: short, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		params := map[string]any{}
 		for key, value := range map[string]string{"workspaceId": workspaceID, "from": from, "to": to} {
 			if value != "" {

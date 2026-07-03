@@ -56,6 +56,7 @@ func languageCreate(deps Dependencies) *cobra.Command {
 		Use:   "create",
 		Short: "Create a language",
 		Long:  "POST /language. Either pass the full payload via --json, or use the convenience flags (--iso-code and --name required). Valid ISO codes come from 'language cultures'.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var body map[string]any
 			if strings.TrimSpace(jsonPayload) != "" {
@@ -123,6 +124,7 @@ func languageDefault(deps Dependencies) *cobra.Command {
 	return &cobra.Command{
 		Use:   "default",
 		Short: "Get the default language",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := deps.Client.Get(cmd.Context(), "/item/language/default", api.RequestOptions{})
 			if err != nil {

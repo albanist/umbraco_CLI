@@ -34,7 +34,7 @@ func logsList(deps Dependencies) *cobra.Command {
 	flags.take = -1
 	flags.minutes = 5
 
-	cmd := &cobra.Command{Use: "list", Short: "List log entries", RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "list", Short: "List log entries", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		params, runtime, err := logParamsFromFlags(paramsRaw, flags)
 		if err != nil {
 			return err
@@ -61,7 +61,7 @@ func logsList(deps Dependencies) *cobra.Command {
 }
 
 func logsLevels(deps Dependencies) *cobra.Command {
-	return &cobra.Command{Use: "levels", Short: "List log levels", Hidden: true, RunE: func(cmd *cobra.Command, args []string) error {
+	return &cobra.Command{Use: "levels", Short: "List log levels", Hidden: true, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("logs levels is not available in the Umbraco v17 Management API; use logs list --level <level> or logs list --filter-expression <expression>")
 	}}
 }
@@ -70,7 +70,7 @@ func logsLevelCount(deps Dependencies) *cobra.Command {
 	var paramsRaw string
 	var from string
 	var to string
-	cmd := &cobra.Command{Use: "level-count", Short: "Get count per level", RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "level-count", Short: "Get count per level", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		params, err := parseParams(paramsRaw)
 		if err != nil {
 			return err
@@ -101,7 +101,7 @@ func logsTemplates(deps Dependencies) *cobra.Command {
 	var to string
 	var skip int
 	var take int
-	cmd := &cobra.Command{Use: "templates", Short: "List paginated log message templates", RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "templates", Short: "List paginated log message templates", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		params := logDateRangePagingParams(from, to, skip, take)
 		result, err := getWithFallback(
 			cmd.Context(),
@@ -127,7 +127,7 @@ func logsSearch(deps Dependencies) *cobra.Command {
 	flags.skip = -1
 	flags.take = -1
 	flags.minutes = 5
-	cmd := &cobra.Command{Use: "search", Short: "Search logs", RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "search", Short: "Search logs", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		params, runtime, err := logParamsFromFlags(paramsRaw, flags)
 		if err != nil {
 			return err

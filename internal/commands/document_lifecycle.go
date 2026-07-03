@@ -79,6 +79,7 @@ func documentSort(deps Dependencies) *cobra.Command {
 		Use:   "sort",
 		Short: "Reorder sibling documents",
 		Long:  "PUT /document/sort. Pass --ids with the desired order (sortOrder is assigned from position) and --parent for the common parent; omit --parent when sorting root-level documents. IDs not listed keep their relative order after the sorted ones.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var body map[string]any
 			if strings.TrimSpace(jsonPayload) != "" {

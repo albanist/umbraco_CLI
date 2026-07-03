@@ -131,6 +131,7 @@ func userSetGroups(deps Dependencies) *cobra.Command {
 		Use:   "set-groups",
 		Short: "Replace the group memberships of one or more users",
 		Long:  "POST /user/set-user-groups. Replaces each listed user's groups with exactly the listed group set. Group GUIDs come from 'user-group list'.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			userIDs := uniqueCSV(userIDsCSV)
 			groupIDs := uniqueCSV(groupIDsCSV)
@@ -159,6 +160,7 @@ func userCurrent(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "current",
 		Short: "Get the user the CLI is authenticated as",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := deps.Client.Get(cmd.Context(), "/user/current", api.RequestOptions{Fields: fields})
 			if err != nil {

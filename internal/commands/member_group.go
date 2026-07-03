@@ -25,6 +25,7 @@ func memberGroupList(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all member groups",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			result, err := getWithFallback(
 				cmd.Context(),

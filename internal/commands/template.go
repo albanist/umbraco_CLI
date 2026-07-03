@@ -56,7 +56,7 @@ func templateCreate(deps Dependencies) *cobra.Command {
 	var jsonPayload string
 	var dryRun bool
 	var printTemplate bool
-	cmd := &cobra.Command{Use: "create", Short: "Create template", RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "create", Short: "Create template", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		if printTemplate {
 			return printResult(cmd, deps, schema.Templates["template.create"])
 		}

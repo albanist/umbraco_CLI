@@ -60,6 +60,7 @@ func userGroupCreate(deps Dependencies) *cobra.Command {
 		Use:   "create",
 		Short: "Create a user group",
 		Long:  "POST /user-group. The model is permission-heavy; start from --print-template or 'user-group get' an existing group. sections use the umb-prefixed aliases (Umb.Section.Content, ...); permissions use single-letter verb codes matching the backoffice.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if printTemplate {
 				return printResult(cmd, deps, schema.Templates["user-group.create"])

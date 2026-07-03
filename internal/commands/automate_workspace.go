@@ -56,6 +56,7 @@ func automateWorkspaceCreate(deps Dependencies) *cobra.Command {
 		Use:   "create",
 		Short: "Create a workspace",
 		Long:  "POST /workspaces. Required: alias, name, serviceAccountKey (a backoffice user GUID automations run as), userGroups (who may edit), allowedConnections (connection GUIDs automations here may use; [] for none). Use --print-template for the shape.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if printTemplate {
 				return printResult(cmd, deps, schema.Templates["automate.workspace.create"])

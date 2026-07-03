@@ -22,6 +22,7 @@ func RegisterGenerateSkills(root *cobra.Command, deps Dependencies) {
 	cmd := &cobra.Command{
 		Use:   "generate-skills",
 		Short: "Generate SKILL.md files from CLI command metadata",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validate.String(outputDir); err != nil {
 				return fmt.Errorf("invalid output directory: %w", err)
