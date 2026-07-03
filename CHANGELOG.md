@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.4.8 - 2026-07-03
+
 - added `media restore` completing the media recycle-bin lifecycle: restores to the original parent by default (looked up via the recycle-bin API), `--to <parent-id>` overrides, `--to root` restores at the media root — the document restore logic generalized into one shared implementation for both resources
 - added `--wait`/`--timeout`/`--poll-interval` to `published-cache rebuild`, polling the rebuild status until `isRebuilding` clears — parity with `indexer rebuild --wait`
 - every command that declares no positional arguments now rejects stray ones (79 commands across all groups) — previously a stray ID was silently ignored, which is how a mistyped `bin delete <id>` could have become a full-bin `empty`; a permanent invariant test walks the whole command tree so new commands cannot regress
