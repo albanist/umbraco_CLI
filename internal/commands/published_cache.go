@@ -47,12 +47,23 @@ func publishedCacheRebuild(deps Dependencies) *cobra.Command {
 
 			deadline := time.Now().Add(timeout)
 			for {
-				statusPayload, err := deps.Client.Get(ctx, "/published-cache/rebuild/status", api.RequestOptions{})
+				// Same fallback list as the status command: older servers
+				// only expose the legacy route.
+				statusPayload, err := getWithFallback(ctx, deps.Client,
+					getRequestCandidate{path: "/published-cache/rebuild/status", opts: api.RequestOptions{}},
+					getRequestCandidate{path: "/published-cache/status", opts: api.RequestOptions{}},
+				)
 				if err != nil {
 					return fmt.Errorf("polling rebuild status failed: %w", err)
 				}
 				rebuilding, known := publishedCacheIsRebuilding(statusPayload)
-				if known && !rebuilding {
+				if !known {
+					// Legacy servers answer with a plain string that has no
+					// isRebuilding flag; burning the whole timeout would just
+					// delay the same answer.
+					return fmt.Errorf("the rebuild was triggered, but this server does not expose the isRebuilding flag so --wait cannot poll it; check 'published-cache status' manually")
+				}
+				if !rebuilding {
 					return printResult(cmd, deps, map[string]any{
 						"rebuilt": true,
 						"waited":  time.Since(deadline.Add(-timeout)).String(),

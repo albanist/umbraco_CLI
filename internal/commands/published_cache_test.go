@@ -190,3 +190,34 @@ func TestPublishedCacheRebuildRejectsDryRunWithWait(t *testing.T) {
 		t.Fatalf("expected dry-run/wait conflict error, got %v", err)
 	}
 }
+
+func TestPublishedCacheRebuildWaitFallsBackToLegacyStatusRoute(t *testing.T) {
+	var statusRequests []string
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/published-cache/rebuild":
+			return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
+		case "/umbraco/management/api/v1/published-cache/rebuild/status":
+			statusRequests = append(statusRequests, req.URL.Path)
+			return endpointJSONResponse(http.StatusNotFound, `{"error":"not found"}`), nil
+		case "/umbraco/management/api/v1/published-cache/status":
+			statusRequests = append(statusRequests, req.URL.Path)
+			return endpointJSONResponse(http.StatusOK, `"cache is ok"`), nil
+		default:
+			return endpointJSONResponse(http.StatusNotFound, `{"error":"not found"}`), nil
+		}
+	})
+
+	_, err := execute(buildPublishedCacheRoot(deps), "published-cache", "rebuild", "--force", "--wait", "--poll-interval", "1ms", "--timeout", "5s")
+	// The legacy payload has no isRebuilding flag: fail fast with a clear
+	// message instead of burning the timeout, but only after the fallback
+	// route was actually tried.
+	if err == nil || !strings.Contains(err.Error(), "does not expose the isRebuilding flag") {
+		t.Fatalf("expected clear wait-unsupported error, got %v", err)
+	}
+	if len(statusRequests) != 2 || statusRequests[1] != "/umbraco/management/api/v1/published-cache/status" {
+		t.Fatalf("expected modern-then-legacy status polling, got %v", statusRequests)
+	}
+}
