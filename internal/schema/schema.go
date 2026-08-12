@@ -257,12 +257,12 @@ var endpointBindings = map[string]endpointBinding{
 	"member-group.list": {Method: "GET", Path: "/member-group"},
 	"member-group.get":  {Method: "GET", Path: "/member-group/{id}", ExtraQuery: withFields},
 
-	// health — the CLI calls version-tolerant paths; the modern operations
-	// are POST /health-check-group/{name}/check and /health-check/execute-action.
+	// health — run and action call the modern operations first and fall back
+	// to the legacy routes (GET .../run, POST /health-check/{actionId}) on 404.
 	"health.groups": {Method: "GET", Path: "/health-check-group"},
 	"health.group":  {Method: "GET", Path: "/health-check-group/{name}"},
-	"health.run":    {Manual: &rawSchema{Method: "GET", Path: "/health-check-group/{name}/run", PathParams: map[string]ParamSchema{"name": {Type: "string", Required: true}}, Response: &ObjectSchema{Type: "object", Description: "Version-dependent: newer servers expose POST /health-check-group/{name}/check instead"}}},
-	"health.action": {Manual: &rawSchema{Method: "POST", Path: "/health-check/{actionId}", PathParams: map[string]ParamSchema{"actionId": {Type: "string", Required: true}}, Response: &ObjectSchema{Type: "object", Description: "Version-dependent: newer servers expose POST /health-check/execute-action instead"}}},
+	"health.run":    {Method: "POST", Path: "/health-check-group/{name}/check", Response: &ObjectSchema{Type: "object", Description: "Falls back to GET /health-check-group/{name}/run on older servers"}},
+	"health.action": {Method: "POST", Path: "/health-check/execute-action", Response: &ObjectSchema{Type: "object", Description: "The positional health-check id fills healthCheck.id when --json omits it; falls back to POST /health-check/{actionId} on older servers"}},
 
 	// published-cache — the CLI's status command falls back to the legacy
 	// /published-cache/status route on older servers.

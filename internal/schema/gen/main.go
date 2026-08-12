@@ -1,9 +1,10 @@
 // Command gen generates openapi_generated.go from the vendored OpenAPI
 // documents (openapi.json for the core Management API, openapi-automate.json
 // for the Umbraco Automate Management API). Refresh them from a running
-// instance with:
+// instance with (v18 moved the core document from
+// /umbraco/swagger/management/swagger.json to /umbraco/management/api/openapi.json):
 //
-//	curl -sk https://localhost:44314/umbraco/swagger/management/swagger.json -o internal/schema/gen/openapi.json
+//	curl -sk https://localhost:44314/umbraco/management/api/openapi.json -o internal/schema/gen/openapi.json
 //	curl -sk https://localhost:44314/umbraco/swagger/automate-management/swagger.json -o internal/schema/gen/openapi-automate.json
 //
 // then run `go generate ./internal/schema`. CI fails when the generated
@@ -13,6 +14,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"go/format"
 	"log"
 	"os"
 	"sort"
@@ -50,14 +52,39 @@ type requestBody struct {
 type jsonSchema struct {
 	Ref         string                `json:"$ref"`
 	OneOf       []jsonSchema          `json:"oneOf"`
-	Type        string                `json:"type"`
+	Type        schemaType            `json:"type"`
 	Format      string                `json:"format"`
 	Description string                `json:"description"`
-	Nullable    bool                  `json:"nullable"`
 	Required    []string              `json:"required"`
 	Properties  map[string]jsonSchema `json:"properties"`
 	Items       *jsonSchema           `json:"items"`
 	Enum        []any                 `json:"enum"`
+}
+
+// schemaType accepts both the OpenAPI 3.0 string form ("string") and the
+// 3.1 array form (["string","null"]) that v18's generator emits; the "null"
+// entry only signals nullability, which the generated output doesn't carry,
+// so the concrete type name is all that's kept.
+type schemaType string
+
+func (t *schemaType) UnmarshalJSON(data []byte) error {
+	var single string
+	if err := json.Unmarshal(data, &single); err == nil {
+		*t = schemaType(single)
+		return nil
+	}
+	var list []string
+	if err := json.Unmarshal(data, &list); err != nil {
+		return fmt.Errorf("type is neither string nor []string: %w", err)
+	}
+	for _, v := range list {
+		if v != "null" {
+			*t = schemaType(v)
+			return nil
+		}
+	}
+	*t = "null"
+	return nil
 }
 
 type generator struct {
@@ -76,10 +103,21 @@ func (g *generator) resolve(s jsonSchema) (jsonSchema, string) {
 		case len(s.OneOf) == 1:
 			s = s.OneOf[0]
 		default:
-			return s, name
+			return normalizeEnumOnly(s), name
 		}
 	}
-	return s, name
+	return normalizeEnumOnly(s), name
+}
+
+// normalizeEnumOnly restores the string type on enum-only schemas: v18's
+// OpenAPI 3.1 document omits "type" on models like DirectionModel where the
+// 3.0 document declared "type": "string", which would otherwise regenerate
+// parameters with an empty type.
+func normalizeEnumOnly(s jsonSchema) jsonSchema {
+	if s.Type == "" && len(s.Enum) > 0 {
+		s.Type = "string"
+	}
+	return s
 }
 
 // typeString renders a schema as the short human/agent-readable type label
@@ -105,7 +143,7 @@ func (g *generator) typeString(s jsonSchema) string {
 		}
 		return "string"
 	case "boolean", "number", "integer":
-		return resolved.Type
+		return string(resolved.Type)
 	case "object", "":
 		if name != "" {
 			if _, hasID := resolved.Properties["id"]; hasID && len(resolved.Properties) == 1 {
@@ -115,13 +153,13 @@ func (g *generator) typeString(s jsonSchema) string {
 		}
 		return "object"
 	default:
-		return resolved.Type
+		return string(resolved.Type)
 	}
 }
 
 func (g *generator) paramSchema(p parameter) (string, string, string) {
 	resolved, _ := g.resolve(p.Schema)
-	typ := resolved.Type
+	typ := string(resolved.Type)
 	format := resolved.Format
 	description := resolved.Description
 	if typ == "array" && resolved.Items != nil {
@@ -312,7 +350,14 @@ func main() {
 	}
 	out.WriteString("}\n")
 
-	if err := os.WriteFile("openapi_generated.go", []byte(out.String()), 0o644); err != nil {
+	// gofmt aligns adjacent map entries into columns, so raw single-tab
+	// output drifts from what CI's formatting check expects — canonicalize
+	// before writing.
+	formatted, err := format.Source([]byte(out.String()))
+	if err != nil {
+		log.Fatalf("format generated file: %v", err)
+	}
+	if err := os.WriteFile("openapi_generated.go", formatted, 0o644); err != nil {
 		log.Fatalf("write generated file: %v", err)
 	}
 	fmt.Printf("generated %d operations\n", len(entries))

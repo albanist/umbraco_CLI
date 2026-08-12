@@ -50,13 +50,15 @@ umbraco health run <group-name>
 
 | Command | Description |
 |---------|-------------|
-| `health action <action-id>` | Execute a health check action |
+| `health action <id>` | Execute a health check action |
 
 ### action
 
 ```bash
-umbraco health action <action-id>
+umbraco health action <id>
 ```
+
+POST /health-check/execute-action. On current servers <id> is the health check id from 'health run' results and fills healthCheck.id in the body when --json omits it. On older servers (which 404 the modern route) <id> must be the legacy action id — it is forwarded to POST /health-check/{actionId} with the --json payload unchanged.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
@@ -67,10 +69,10 @@ umbraco health action <action-id>
 
 ```bash
 # 1. Dry run first
-umbraco health action <action-id> --dry-run
+umbraco health action <id> --dry-run
 
 # 2. Execute
-umbraco health action <action-id>
+umbraco health action <id>
 ```
 
 ## Discovering Commands
