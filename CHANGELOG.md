@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fixed `health run` and `health action` against current Umbraco versions (verified live on 18.1): both now call the modern operations first — `POST /health-check-group/{name}/check` and `POST /health-check/execute-action` (the positional health-check id fills `healthCheck.id` when `--json` omits it) — and fall back to the legacy `GET .../run` / `POST /health-check/{actionId}` routes on 404; previously both commands 404'd on current servers (reported by an agent against 18.1)
+
 ## v0.4.8 - 2026-07-03
 
 - added `media restore` completing the media recycle-bin lifecycle: restores to the original parent by default (looked up via the recycle-bin API), `--to <parent-id>` overrides, `--to root` restores at the media root — the document restore logic generalized into one shared implementation for both resources

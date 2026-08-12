@@ -50,12 +50,12 @@ umbraco health run <group-name>
 
 | Command | Description |
 |---------|-------------|
-| `health action <action-id>` | Execute a health check action |
+| `health action <health-check-id>` | Execute a health check action |
 
 ### action
 
 ```bash
-umbraco health action <action-id>
+umbraco health action <health-check-id>
 ```
 
 | Flag | Type | Default | Description |
@@ -67,10 +67,10 @@ umbraco health action <action-id>
 
 ```bash
 # 1. Dry run first
-umbraco health action <action-id> --dry-run
+umbraco health action <health-check-id> --dry-run
 
 # 2. Execute
-umbraco health action <action-id>
+umbraco health action <health-check-id>
 ```
 
 ## Discovering Commands

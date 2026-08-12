@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"net/http"
+
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
@@ -37,7 +39,11 @@ func healthGroup(deps Dependencies) *cobra.Command {
 
 func healthRun(deps Dependencies) *cobra.Command {
 	return &cobra.Command{Use: "run <group-name>", Short: "Run health checks for group", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		result, err := deps.Client.Get(cmd.Context(), api.JoinPath("/health-check-group/%s/run", args[0]), api.RequestOptions{})
+		result, err := deps.Client.Post(cmd.Context(), api.JoinPath("/health-check-group/%s/check", args[0]), nil, api.RequestOptions{})
+		if isAPIStatus(err, http.StatusNotFound) {
+			// Older servers expose GET .../run instead of POST .../check.
+			result, err = deps.Client.Get(cmd.Context(), api.JoinPath("/health-check-group/%s/run", args[0]), api.RequestOptions{})
+		}
 		if err != nil {
 			return err
 		}
@@ -48,12 +54,29 @@ func healthRun(deps Dependencies) *cobra.Command {
 func healthAction(deps Dependencies) *cobra.Command {
 	var jsonPayload string
 	var dryRun bool
-	cmd := &cobra.Command{Use: "action <action-id>", Short: "Execute a health check action", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{Use: "action <health-check-id>", Short: "Execute a health check action", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		body, err := optionalBody(jsonPayload)
 		if err != nil {
 			return err
 		}
-		result, err := deps.Client.Post(cmd.Context(), api.JoinPath("/health-check/%s", args[0]), body, api.RequestOptions{DryRun: dryRun})
+		// Modern servers take the full action model on /execute-action, with
+		// the owning health check referenced in the body; the positional
+		// argument fills that reference when --json doesn't carry one.
+		modern := make(map[string]any, len(body)+2)
+		for k, v := range body {
+			modern[k] = v
+		}
+		if _, ok := modern["healthCheck"]; !ok {
+			modern["healthCheck"] = map[string]any{"id": args[0]}
+		}
+		if _, ok := modern["valueRequired"]; !ok {
+			modern["valueRequired"] = false
+		}
+		result, err := deps.Client.Post(cmd.Context(), "/health-check/execute-action", modern, api.RequestOptions{DryRun: dryRun})
+		if isAPIStatus(err, http.StatusNotFound) {
+			// Older servers address the action by id in the path instead.
+			result, err = deps.Client.Post(cmd.Context(), api.JoinPath("/health-check/%s", args[0]), body, api.RequestOptions{DryRun: dryRun})
+		}
 		if err != nil {
 			return err
 		}

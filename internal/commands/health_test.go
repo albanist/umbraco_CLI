@@ -63,14 +63,15 @@ func TestHealthGroupEscapesNameSegment(t *testing.T) {
 	}
 }
 
-func TestHealthRunHitsGroupRunEndpoint(t *testing.T) {
-	var requestedPath string
+func TestHealthRunPostsCheckEndpoint(t *testing.T) {
+	var requestedPath, requestedMethod string
 	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/umbraco/management/api/v1/security/back-office/token":
 			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
 		default:
 			requestedPath = req.URL.Path
+			requestedMethod = req.Method
 			return endpointJSONResponse(http.StatusOK, `{"checks":[{"name":"Macro errors","results":[]}]}`), nil
 		}
 	})
@@ -78,8 +79,31 @@ func TestHealthRunHitsGroupRunEndpoint(t *testing.T) {
 	if _, err := execute(buildHealthRoot(deps), "health", "run", "Configuration"); err != nil {
 		t.Fatalf("health run failed: %v", err)
 	}
-	if requestedPath != "/umbraco/management/api/v1/health-check-group/Configuration/run" {
-		t.Fatalf("unexpected path %q", requestedPath)
+	if requestedMethod != http.MethodPost || requestedPath != "/umbraco/management/api/v1/health-check-group/Configuration/check" {
+		t.Fatalf("unexpected request %s %s", requestedMethod, requestedPath)
+	}
+}
+
+func TestHealthRunFallsBackToLegacyRunEndpoint(t *testing.T) {
+	var legacyPath, legacyMethod string
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/health-check-group/Configuration/check":
+			return endpointJSONResponse(http.StatusNotFound, `null`), nil
+		default:
+			legacyPath = req.URL.Path
+			legacyMethod = req.Method
+			return endpointJSONResponse(http.StatusOK, `{"checks":[{"name":"Macro errors","results":[]}]}`), nil
+		}
+	})
+
+	if _, err := execute(buildHealthRoot(deps), "health", "run", "Configuration"); err != nil {
+		t.Fatalf("health run failed: %v", err)
+	}
+	if legacyMethod != http.MethodGet || legacyPath != "/umbraco/management/api/v1/health-check-group/Configuration/run" {
+		t.Fatalf("expected legacy fallback GET .../run, got %s %s", legacyMethod, legacyPath)
 	}
 }
 
@@ -98,14 +122,72 @@ func TestHealthActionPostsPayload(t *testing.T) {
 		}
 	})
 
-	if _, err := execute(buildHealthRoot(deps), "health", "action", "action-1", "--json", `{"alias":"fixConfig"}`); err != nil {
+	if _, err := execute(buildHealthRoot(deps), "health", "action", "check-1", "--json", `{"alias":"fixConfig"}`); err != nil {
 		t.Fatalf("health action failed: %v", err)
 	}
-	if requestedMethod != http.MethodPost || requestedPath != "/umbraco/management/api/v1/health-check/action-1" {
+	if requestedMethod != http.MethodPost || requestedPath != "/umbraco/management/api/v1/health-check/execute-action" {
 		t.Fatalf("unexpected request %s %s", requestedMethod, requestedPath)
 	}
 	if !strings.Contains(requestedBody, `"fixConfig"`) {
 		t.Fatalf("expected payload forwarded, got %q", requestedBody)
+	}
+	if !strings.Contains(requestedBody, `"healthCheck":{"id":"check-1"}`) {
+		t.Fatalf("expected healthCheck reference injected from argument, got %q", requestedBody)
+	}
+	if !strings.Contains(requestedBody, `"valueRequired":false`) {
+		t.Fatalf("expected valueRequired default, got %q", requestedBody)
+	}
+}
+
+func TestHealthActionKeepsExplicitHealthCheckReference(t *testing.T) {
+	var requestedBody string
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		default:
+			body, _ := io.ReadAll(req.Body)
+			requestedBody = string(body)
+			return endpointJSONResponse(http.StatusOK, `{"success":true}`), nil
+		}
+	})
+
+	if _, err := execute(buildHealthRoot(deps), "health", "action", "check-1", "--json", `{"healthCheck":{"id":"explicit"},"valueRequired":true}`); err != nil {
+		t.Fatalf("health action failed: %v", err)
+	}
+	if !strings.Contains(requestedBody, `"healthCheck":{"id":"explicit"}`) {
+		t.Fatalf("expected explicit healthCheck reference preserved, got %q", requestedBody)
+	}
+	if !strings.Contains(requestedBody, `"valueRequired":true`) {
+		t.Fatalf("expected explicit valueRequired preserved, got %q", requestedBody)
+	}
+}
+
+func TestHealthActionFallsBackToLegacyActionEndpoint(t *testing.T) {
+	var legacyPath, legacyMethod, legacyBody string
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/health-check/execute-action":
+			return endpointJSONResponse(http.StatusNotFound, `null`), nil
+		default:
+			legacyPath = req.URL.Path
+			legacyMethod = req.Method
+			body, _ := io.ReadAll(req.Body)
+			legacyBody = string(body)
+			return endpointJSONResponse(http.StatusOK, `{"success":true}`), nil
+		}
+	})
+
+	if _, err := execute(buildHealthRoot(deps), "health", "action", "action-1", "--json", `{"alias":"fixConfig"}`); err != nil {
+		t.Fatalf("health action failed: %v", err)
+	}
+	if legacyMethod != http.MethodPost || legacyPath != "/umbraco/management/api/v1/health-check/action-1" {
+		t.Fatalf("expected legacy fallback POST /health-check/{id}, got %s %s", legacyMethod, legacyPath)
+	}
+	if strings.Contains(legacyBody, "healthCheck") {
+		t.Fatalf("expected legacy body without injected healthCheck reference, got %q", legacyBody)
 	}
 }
 
