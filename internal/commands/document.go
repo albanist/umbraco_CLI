@@ -36,6 +36,7 @@ func RegisterDocument(root *cobra.Command, deps Dependencies) {
 	document.AddCommand(documentPublishDescendants(deps))
 	document.AddCommand(documentPublishDescendantsResult(deps))
 	document.AddCommand(documentSort(deps))
+	document.AddCommand(sortChildrenCommand(deps, "document", true))
 	document.AddCommand(documentDomains(deps))
 	document.AddCommand(documentPublicAccess(deps))
 	document.AddCommand(documentCopy(deps))

@@ -71,14 +71,21 @@ func documentPublishDescendantsResult(deps Dependencies) *cobra.Command {
 }
 
 func documentSort(deps Dependencies) *cobra.Command {
+	return sortCommand(deps, "document")
+}
+
+// sortCommand builds "<resource> sort" over PUT /<resource>/sort: an
+// explicit id-order reorder shared by document and media. For field-based
+// reordering of a whole sibling set see sortChildrenCommand.
+func sortCommand(deps Dependencies, resource string) *cobra.Command {
 	var jsonPayload string
 	var parent string
 	var idsCSV string
 	var dryRun bool
 	cmd := &cobra.Command{
 		Use:   "sort",
-		Short: "Reorder sibling documents",
-		Long:  "PUT /document/sort. Pass --ids with the desired order (sortOrder is assigned from position) and --parent for the common parent; omit --parent when sorting root-level documents. IDs not listed keep their relative order after the sorted ones.",
+		Short: "Reorder sibling " + resource + " items into an explicit order",
+		Long:  fmt.Sprintf("PUT /%[1]s/sort. Pass --ids with the desired order (sortOrder is assigned from position) and --parent for the common parent; omit --parent when sorting root-level items. IDs not listed keep their relative order after the sorted ones.", resource),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var body map[string]any
@@ -91,7 +98,7 @@ func documentSort(deps Dependencies) *cobra.Command {
 			} else {
 				ids := uniqueCSV(idsCSV)
 				if len(ids) == 0 {
-					return fmt.Errorf("document sort requires --ids <comma-separated guids in the desired order> or --json")
+					return fmt.Errorf("%s sort requires --ids <comma-separated guids in the desired order> or --json", resource)
 				}
 				sorting := make([]any, len(ids))
 				for i, id := range ids {
@@ -102,7 +109,7 @@ func documentSort(deps Dependencies) *cobra.Command {
 					body["parent"] = map[string]any{"id": parent}
 				}
 			}
-			result, err := deps.Client.Put(cmd.Context(), "/document/sort", body, api.RequestOptions{DryRun: dryRun})
+			result, err := deps.Client.Put(cmd.Context(), "/"+resource+"/sort", body, api.RequestOptions{DryRun: dryRun})
 			if err != nil {
 				return err
 			}
@@ -110,8 +117,8 @@ func documentSort(deps Dependencies) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&jsonPayload, "json", "", "Sort payload as JSON")
-	cmd.Flags().StringVar(&parent, "parent", "", "Parent document ID (omit for root-level documents)")
-	cmd.Flags().StringVar(&idsCSV, "ids", "", "Comma-separated document GUIDs in the desired order")
+	cmd.Flags().StringVar(&parent, "parent", "", "Parent ID (omit for root-level items)")
+	cmd.Flags().StringVar(&idsCSV, "ids", "", "Comma-separated GUIDs in the desired order")
 	addDryRunFlag(cmd, &dryRun)
 	return cmd
 }
