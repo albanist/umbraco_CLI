@@ -299,11 +299,11 @@ PUT /user/current/profile (Umbraco 18.1+). Sets the backoffice UI language of th
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user set-language <iso-code> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user set-language <iso-code> [flags] --dry-run
 
-# 2. Execute
-umbraco user set-language <iso-code>
+# 2. Execute with the same flags
+umbraco user set-language <iso-code> [flags]
 ```
 
 ### unlock
