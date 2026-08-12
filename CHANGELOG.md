@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- added `document sort-children [parent-id]` and `media sort-children [parent-id]` for the new server-side reorder operations (Umbraco 18.1+): sorts every child of the parent (root when omitted) by `--field Name|CreateDate|UpdateDate` with `--direction` (asc/desc accepted, canonical casing sent), and `--culture` on documents for variant-name sorting — complementing the explicit-order `sort` commands (and `media sort` now exists: the document implementation generalized to one shared builder over `PUT /media/sort`, closing the gap where media had no manual reorder at all)
 - added `document create --publish [--culture <csv>]` targeting the new atomic `POST /document/create-and-publish` operation (Umbraco 18.1+): the document is created and published in one server-side call; `--culture` names the cultures to publish, omitted = invariant (empty `culturesToPublish`, matching the backoffice convention)
 - `document update --save-and-publish` now uses the atomic `PUT /document/{id}/update-and-publish` operation when the server supports it (Umbraco 18.1+), which eliminates the invariant-content publish race the two-call flow had to retry around; older servers fall back to the previous separate update+publish calls, and the output gains an `atomic: true` marker on the atomic path
 
