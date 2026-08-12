@@ -24,7 +24,7 @@ umbraco user <command> [flags]
 |---------|-------------|
 | `user client-credentials list <user-id>` | List the client IDs registered for an API user |
 | `user current` | Get the user the CLI is authenticated as |
-| `user get <id>` | Get a backoffice user by ID |
+| `user get <id> [<id>...]` | Get backoffice users by ID |
 | `user list` | List backoffice users (paginated; --skip/--take/--all, --filter for substring search) |
 | `user permissions --ids <id,...>` | Check the current user's permissions on specific items |
 
@@ -47,8 +47,10 @@ umbraco user current
 ### get
 
 ```bash
-umbraco user get <id>
+umbraco user get <id> [<id>...]
 ```
+
+GET /user/{id} for a single ID; several IDs fetch in one round trip via GET /user/batch (Umbraco 18.1+).
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
@@ -99,6 +101,7 @@ GET /user/current/permissions[/document|/media]. Lets an agent verify it may wri
 | `user enable --ids <id,...>` | Enable disabled user accounts |
 | `user invite` | Invite a user by email (they choose their own password) |
 | `user set-groups` | Replace the group memberships of one or more users |
+| `user set-language <iso-code>` | Set the current user's backoffice UI language |
 | `user unlock --ids <id,...>` | Unlock user accounts locked out by failed logins |
 | `user update <id>` | Update a backoffice user |
 
@@ -279,6 +282,28 @@ umbraco user set-groups [flags] --dry-run
 
 # 2. Execute with the same flags
 umbraco user set-groups [flags]
+```
+
+### set-language
+
+```bash
+umbraco user set-language <iso-code>
+```
+
+PUT /user/current/profile (Umbraco 18.1+). Sets the backoffice UI language of the account the CLI authenticates as (e.g. en-US, da-DK).
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--dry-run` | bool | false | Print the planned request without executing |
+
+**Safe pattern:**
+
+```bash
+# 1. Rehearse with the exact flags you will execute with
+umbraco user set-language <iso-code> [flags] --dry-run
+
+# 2. Execute with the same flags
+umbraco user set-language <iso-code> [flags]
 ```
 
 ### unlock

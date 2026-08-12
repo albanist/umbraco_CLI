@@ -24,7 +24,7 @@ var ExpectedCollectionCommandCounts = map[string]int{
 	"auth":            5,
 	"webhook":         7,
 	"language":        7,
-	"user":            13,
+	"user":            14,
 	"user-group":      7,
 	"automate":        8,
 }
