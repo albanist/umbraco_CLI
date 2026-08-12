@@ -360,11 +360,11 @@ PUT /media/sort. Pass --ids with the desired order (sortOrder is assigned from p
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media sort --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media sort [flags] --dry-run
 
-# 2. Execute
-umbraco media sort
+# 2. Execute with the same flags
+umbraco media sort [flags]
 ```
 
 ### sort-children
@@ -384,11 +384,11 @@ PUT /media/root/sort-children or /media/{id}/sort-children (Umbraco 18.1+). Reor
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media sort-children [parent-id] --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media sort-children [parent-id] [flags] --dry-run
 
-# 2. Execute
-umbraco media sort-children [parent-id]
+# 2. Execute with the same flags
+umbraco media sort-children [parent-id] [flags]
 ```
 
 ### trash

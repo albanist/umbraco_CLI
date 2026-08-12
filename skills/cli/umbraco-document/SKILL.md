@@ -697,11 +697,11 @@ PUT /document/root/sort-children or /document/{id}/sort-children (Umbraco 18.1+)
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document sort-children [parent-id] --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document sort-children [parent-id] [flags] --dry-run
 
-# 2. Execute
-umbraco document sort-children [parent-id]
+# 2. Execute with the same flags
+umbraco document sort-children [parent-id] [flags]
 ```
 
 ### trash
