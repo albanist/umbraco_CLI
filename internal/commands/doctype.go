@@ -21,6 +21,7 @@ func RegisterDoctype(root *cobra.Command, deps Dependencies) {
 	doctype.AddCommand(doctypeRoot(deps))
 	doctype.AddCommand(doctypeChildren(deps))
 	doctype.AddCommand(doctypeSearch(deps))
+	doctype.AddCommand(doctypeAllowedInLibrary(deps))
 	doctype.AddCommand(doctypeCreate(deps))
 	doctype.AddCommand(doctypeUpdate(deps))
 	doctype.AddCommand(doctypeAddProperty(deps))
@@ -172,6 +173,20 @@ func itemID(item any) string {
 	}
 	id, _ := entry["id"].(string)
 	return strings.TrimSpace(id)
+}
+
+func doctypeAllowedInLibrary(deps Dependencies) *cobra.Command {
+	return collectionCommand(deps, collectionSpec{
+		Use:   "allowed-in-library",
+		Short: "List document types usable as library elements (Umbraco 18.1+)",
+		Long:  "GET /document-type/allowed-in-library. Lists the element types with allowedInLibrary set — the types 'element create' accepts.",
+		NArgs: 0,
+		Endpoints: func(args []string, params map[string]any) []getRequestCandidate {
+			return []getRequestCandidate{
+				{path: "/document-type/allowed-in-library", opts: api.RequestOptions{Params: params}},
+			}
+		},
+	})
 }
 
 func doctypeCreate(deps Dependencies) *cobra.Command {

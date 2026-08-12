@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- fixed `--culture` on `document publish` (and the new `element publish`): the shortcut sent `{"cultures":[...]}`, which belongs to the unpublish model — the publish operation requires `publishSchedules` on every Management API version the CLI has vendored, so culture-scoped publishes were rejected by the server; the shortcut now builds a `publishSchedules` entry (caught by Codex review)
+- `are-referenced` bulk checks (document/media/element) now request as many rows as IDs supplied instead of relying on the server's default page size of 20, so IDs beyond the first page can no longer be misread as unreferenced
+
+- added the `element` command group for the Umbraco 18.1+ element library (reusable content items living in a folder library instead of the page tree): `list`/`children`/`ancestors`/`search`, `get`/`published`, `create` (with atomic `--publish`), `update` (with atomic `--save-and-publish`), `publish`/`unpublish`, `copy`/`move`/`trash`/`delete`, `audit-log`, reference tracking (`references`/`referenced-descendants`/`are-referenced`), the `bin` recycle-bin subgroup with `restore`, and `version` history with rollback and prevent-cleanup — 21 commands mirroring the document family through the shared builders, all verified live against 18.1
+- added `doctype allowed-in-library` listing the document types usable as library elements (`allowedInLibrary`), the discovery entry point for `element create`
+
 - `user get` now accepts several IDs, fetching them in one round trip via the new `GET /user/batch` operation (Umbraco 18.1+); a single ID keeps using `GET /user/{id}`
 - added `user set-language <iso-code>` wrapping the new `PUT /user/current/profile` operation (Umbraco 18.1+): sets the backoffice UI language of the account the CLI authenticates as
 - added `document sort-children [parent-id]` and `media sort-children [parent-id]` for the new server-side reorder operations (Umbraco 18.1+): sorts every child of the parent (root when omitted) by `--field Name|CreateDate|UpdateDate` with `--direction` (asc/desc accepted, canonical casing sent), and `--culture` on documents for variant-name sorting — complementing the explicit-order `sort` commands (and `media sort` now exists: the document implementation generalized to one shared builder over `PUT /media/sort`, closing the gap where media had no manual reorder at all)

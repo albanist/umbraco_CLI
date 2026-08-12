@@ -31,6 +31,7 @@ func buildRootWithCollections(t *testing.T, deps Dependencies) *cobra.Command {
 		root.PersistentFlags().StringVarP(deps.OutputFlag, "output", "o", *deps.OutputFlag, "Output format: json, table, plain")
 	}
 	RegisterDocument(root, deps)
+	RegisterElement(root, deps)
 	RegisterDictionary(root, deps)
 	RegisterMedia(root, deps)
 	RegisterDoctype(root, deps)
@@ -102,8 +103,8 @@ func TestCommandCountsMatchMVP(t *testing.T) {
 		total += len(found.Commands())
 	}
 
-	if total != 199 {
-		t.Fatalf("expected 199 collection commands, got %d", total)
+	if total != 221 {
+		t.Fatalf("expected 221 collection commands, got %d", total)
 	}
 }
 
@@ -161,6 +162,7 @@ func TestRegisteredAPICommandsHaveSchemas(t *testing.T) {
 	root := buildRootWithCollections(t, makeDeps())
 	schemaBackedCollections := map[string]struct{}{
 		"document":       {},
+		"element":        {},
 		"dictionary":     {},
 		"media":          {},
 		"doctype":        {},
@@ -201,6 +203,8 @@ func TestRegisteredAPICommandsHaveSchemas(t *testing.T) {
 		"user.client-credentials":   "OAuth credential subgroup (list/create/delete)",
 		"document.bin":              "recycle bin subgroup (list/children/original-parent/delete/empty)",
 		"media.bin":                 "recycle bin subgroup (list/children/original-parent/delete/empty)",
+		"element.bin":               "recycle bin subgroup (list/children/original-parent/delete/empty)",
+		"element.version":           "version history subgroup (list/get/rollback/prevent-cleanup)",
 	}
 
 	missing := make([]string, 0)

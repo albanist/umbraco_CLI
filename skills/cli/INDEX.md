@@ -23,6 +23,7 @@ Per-resource CLI command skills.
 | [umbraco-dictionary](umbraco-dictionary/SKILL.md) | Dictionary item and translation key operations |
 | [umbraco-doctype](umbraco-doctype/SKILL.md) | Document type schema operations |
 | [umbraco-document](umbraco-document/SKILL.md) | Document and content management operations |
+| [umbraco-element](umbraco-element/SKILL.md) | Element library content (Umbraco 18.1+): reusable content items with publish lifecycle |
 | [umbraco-forms](umbraco-forms/SKILL.md) | Umbraco Forms operations (read-only) |
 | [umbraco-health](umbraco-health/SKILL.md) | Health check operations |
 | [umbraco-indexer](umbraco-indexer/SKILL.md) | Examine search index operations |
