@@ -201,6 +201,8 @@ umbraco media urls <id>
 | `media create-folder [name]` | Create media folder |
 | `media move <id>` | Move media item |
 | `media restore <id>` | Restore a media item from the recycle bin |
+| `media sort` | Reorder sibling media items into an explicit order |
+| `media sort-children [parent-id]` | Sort all children of a node by a field |
 | `media trash <id>` | Move media item to recycle bin |
 | `media update <id>` | Update media item |
 | `media upload <file>` | Upload a file and create a media item |
@@ -338,6 +340,55 @@ umbraco media restore <id> [flags] --dry-run
 
 # 2. Execute with the same flags
 umbraco media restore <id> [flags]
+```
+
+### sort
+
+```bash
+umbraco media sort
+```
+
+PUT /media/sort. Pass --ids with the desired order (sortOrder is assigned from position) and --parent for the common parent; omit --parent when sorting root-level items. IDs not listed keep their relative order after the sorted ones.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--dry-run` | bool | false | Print the planned request without executing |
+| `--ids` | string | — | Comma-separated GUIDs in the desired order |
+| `--json` | string | — | Sort payload as JSON |
+| `--parent` | string | — | Parent ID (omit for root-level items) |
+
+**Safe pattern:**
+
+```bash
+# 1. Rehearse with the exact flags you will execute with
+umbraco media sort [flags] --dry-run
+
+# 2. Execute with the same flags
+umbraco media sort [flags]
+```
+
+### sort-children
+
+```bash
+umbraco media sort-children [parent-id]
+```
+
+PUT /media/root/sort-children or /media/{id}/sort-children (Umbraco 18.1+). Reorders every child of the parent (root when [parent-id] is omitted) server-side by --field. For explicit manual ordering use 'media sort' instead.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--direction` | string | Ascending | Sort direction: Ascending or Descending (asc/desc accepted) |
+| `--dry-run` | bool | false | Print the planned request without executing |
+| `--field` | string | — | Sort field: Name, CreateDate, or UpdateDate (required) |
+
+**Safe pattern:**
+
+```bash
+# 1. Rehearse with the exact flags you will execute with
+umbraco media sort-children [parent-id] [flags] --dry-run
+
+# 2. Execute with the same flags
+umbraco media sort-children [parent-id] [flags]
 ```
 
 ### trash

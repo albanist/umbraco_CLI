@@ -132,6 +132,32 @@ var automateCatalogueOperatorsSchema = &rawSchema{
 	},
 }
 
+// sortChildrenSchema documents the paired sort-children routes: the {id}
+// route sorts under a parent, the root route (no path parameter) sorts
+// top-level items — a single OpenAPI binding would report id as required.
+func sortChildrenSchema(resource string, withCulture bool) *rawSchema {
+	body := &ObjectSchema{
+		Type:     "object",
+		Required: []string{"field", "direction"},
+		Properties: map[string]any{
+			"field":     "enum: Name|CreateDate|UpdateDate",
+			"direction": "enum: Ascending|Descending",
+		},
+	}
+	if withCulture {
+		body.Properties["culture"] = "string (sort by this culture's variant name)"
+	}
+	return &rawSchema{
+		Method: "PUT",
+		Path:   "/" + resource + "/root/sort-children | /" + resource + "/{id}/sort-children",
+		PathParams: map[string]ParamSchema{
+			"id": {Type: "string", Format: "uuid", Description: "Parent id; omit the positional argument to sort root-level items via the root route"},
+		},
+		RequestBody: body,
+		Response:    &ObjectSchema{Type: "object", Description: "Umbraco 18.1+; sorts every child of the parent server-side by field"},
+	}
+}
+
 var endpointBindings = map[string]endpointBinding{
 	// schema
 	"schema.diff": {Manual: schemaDiffSchema},
@@ -182,6 +208,7 @@ var endpointBindings = map[string]endpointBinding{
 	"document.publish-descendants":        {Method: "PUT", Path: "/document/{id}/publish-with-descendants", Response: &ObjectSchema{Type: "object", Description: "Asynchronous; carries a taskId for publish-descendants-result"}},
 	"document.publish-descendants-result": {Method: "GET", Path: "/document/{id}/publish-with-descendants/result/{taskId}"},
 	"document.sort":                       {Method: "PUT", Path: "/document/sort"},
+	"document.sort-children":              {Manual: sortChildrenSchema("document", true)},
 	"document.audit-log":                  {Method: "GET", Path: "/document/{id}/audit-log"},
 	"document.copy":                       {Method: "POST", Path: "/document/{id}/copy"},
 	"document.move":                       {Method: "PUT", Path: "/document/{id}/move"},
@@ -221,6 +248,8 @@ var endpointBindings = map[string]endpointBinding{
 	"media.upload":                 {Manual: &rawSchema{Method: "POST", Path: "/temporary-file", RequestBody: &ObjectSchema{Type: "object", Description: "CLI workflow: multipart temporary-file upload followed by media create"}}},
 	"media.update":                 {Method: "PUT", Path: "/media/{id}"},
 	"media.move":                   {Method: "PUT", Path: "/media/{id}/move"},
+	"media.sort":                   {Method: "PUT", Path: "/media/sort"},
+	"media.sort-children":          {Manual: sortChildrenSchema("media", false)},
 	"media.delete":                 {Method: "DELETE", Path: "/media/{id}"},
 	"media.trash":                  {Method: "PUT", Path: "/media/{id}/move-to-recycle-bin"},
 	"media.references":             {Method: "GET", Path: "/media/{id}/referenced-by"},
