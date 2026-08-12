@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -215,13 +216,51 @@ func documentSearch(deps Dependencies) *cobra.Command {
 }
 
 func documentCreate(deps Dependencies) *cobra.Command {
+	var publish bool
+	var cultures string
 	return createCommand(deps, createSpec{
 		Use:          "create",
 		Short:        "Create a document",
+		Long:         "POST /document, or POST /document/create-and-publish with --publish (requires Umbraco 18.1+): the document is created and published in one atomic server-side operation, with --culture naming the cultures to publish (omit for invariant content).",
 		Path:         "/document",
 		TemplateKey:  "document.create",
 		PayloadUsage: "Full JSON payload",
+		Flags: func(cmd *cobra.Command) func(map[string]any) error {
+			cmd.Flags().BoolVar(&publish, "publish", false, "Create and publish atomically via POST /document/create-and-publish (Umbraco 18.1+)")
+			cmd.Flags().StringVar(&cultures, "culture", "", "Comma-separated cultures to publish with --publish; omit for invariant content")
+			return func(body map[string]any) error {
+				if !publish {
+					if strings.TrimSpace(cultures) != "" {
+						return fmt.Errorf("--culture requires --publish")
+					}
+					return nil
+				}
+				if _, ok := body["culturesToPublish"]; !ok {
+					body["culturesToPublish"] = culturesToPublishList(cultures)
+				}
+				return nil
+			}
+		},
+		RouteOverride: func() string {
+			if publish {
+				return "/document/create-and-publish"
+			}
+			return ""
+		},
 	})
+}
+
+// culturesToPublishList maps the --culture shortcut to the culturesToPublish
+// array the combined create/update-and-publish operations require. Invariant
+// content publishes with an empty list — the backoffice filters invariant
+// variants out rather than sending a null culture.
+func culturesToPublishList(cultures string) []any {
+	names := uniqueCSV(cultures)
+	list := make([]any, len(names))
+	for i, name := range names {
+		list[i] = name
+	}
+	return list
 }
 
 func documentUpdate(deps Dependencies) *cobra.Command {
@@ -272,15 +311,42 @@ func documentUpdate(deps Dependencies) *cobra.Command {
 				}
 			}
 
+			if !saveAndPublish {
+				result, err := deps.Client.Put(ctx, path, body, api.RequestOptions{DryRun: dryRun})
+				if err != nil {
+					return err
+				}
+				return printMutationResult(cmd, deps, "updated", result, dryRun)
+			}
+
+			// Modern servers (18.1+) update and publish in one atomic
+			// operation, which also sidesteps the invariant-content publish
+			// race the two-call flow has to retry around.
+			atomicBody := make(map[string]any, len(body)+1)
+			for k, v := range body {
+				atomicBody[k] = v
+			}
+			if _, ok := atomicBody["culturesToPublish"]; !ok {
+				atomicBody["culturesToPublish"] = culturesToPublishList(culture)
+			}
+			atomicResult, err := deps.Client.Put(ctx, api.JoinPath("/document/%s/update-and-publish", args[0]), atomicBody, api.RequestOptions{DryRun: dryRun})
+			if err == nil {
+				return printResult(cmd, deps, map[string]any{
+					"saveAndPublish": true,
+					"atomic":         true,
+					"updated":        coalescePutResult(atomicResult, dryRun),
+					"published":      coalescePutResult(atomicResult, dryRun),
+				})
+			}
+			if !isAPIStatus(err, http.StatusNotFound) {
+				return err
+			}
+
+			// Older servers: separate update and publish calls.
 			result, err := deps.Client.Put(ctx, path, body, api.RequestOptions{DryRun: dryRun})
 			if err != nil {
 				return err
 			}
-
-			if !saveAndPublish {
-				return printMutationResult(cmd, deps, "updated", result, dryRun)
-			}
-
 			publishBody, err := documentPublishBody("", culture)
 			if err != nil {
 				return err

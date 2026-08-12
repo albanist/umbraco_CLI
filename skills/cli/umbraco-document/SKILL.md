@@ -441,11 +441,15 @@ umbraco document copy <id>
 umbraco document create
 ```
 
+POST /document, or POST /document/create-and-publish with --publish (requires Umbraco 18.1+): the document is created and published in one atomic server-side operation, with --culture naming the cultures to publish (omit for invariant content).
+
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
+| `--culture` | string | — | Comma-separated cultures to publish with --publish; omit for invariant content |
 | `--dry-run` | bool | false | Print the planned request without executing |
 | `--json` | string | — | Full JSON payload |
 | `--print-template` | bool | false | Print an annotated JSON skeleton; substitute placeholders before passing to --json |
+| `--publish` | bool | false | Create and publish atomically via POST /document/create-and-publish (Umbraco 18.1+) |
 
 **Safe pattern:**
 
