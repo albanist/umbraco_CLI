@@ -2,7 +2,7 @@
 name: umbraco-automate
 description: "Umbraco Automate operations (event-driven workflow automation)"
 metadata:
-  version: 0.4.8
+  version: 0.4.9
   requires:
     bins:
       - umbraco

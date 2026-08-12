@@ -2,7 +2,7 @@
 name: umbraco-server
 description: "Server information and diagnostics"
 metadata:
-  version: 0.4.8
+  version: 0.4.9
   requires:
     bins:
       - umbraco

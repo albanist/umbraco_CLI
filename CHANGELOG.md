@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.4.9 - 2026-08-12
+
 - fixed `--culture` on `document publish` (and the new `element publish`): the shortcut sent `{"cultures":[...]}`, which belongs to the unpublish model — the publish operation requires `publishSchedules` on every Management API version the CLI has vendored, so culture-scoped publishes were rejected by the server; the shortcut now builds a `publishSchedules` entry (caught by Codex review)
 - `are-referenced` bulk checks (document/media/element) now request as many rows as IDs supplied instead of relying on the server's default page size of 20, so IDs beyond the first page can no longer be misread as unreferenced
 
