@@ -93,11 +93,11 @@ umbraco redirect delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco redirect delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco redirect delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco redirect delete <id> --force
+# 2. Execute with the same flags
+umbraco redirect delete <id> --force [flags]
 ```
 
 ### disable
@@ -115,11 +115,11 @@ POST /redirect-management/status?status=Disabled. Toggles redirect URL tracking 
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco redirect disable --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco redirect disable [flags] --dry-run
 
-# 2. Execute
-umbraco redirect disable
+# 2. Execute with the same flags
+umbraco redirect disable [flags]
 ```
 
 ### enable
@@ -137,11 +137,11 @@ POST /redirect-management/status?status=Enabled. Toggles redirect URL tracking s
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco redirect enable --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco redirect enable [flags] --dry-run
 
-# 2. Execute
-umbraco redirect enable
+# 2. Execute with the same flags
+umbraco redirect enable [flags]
 ```
 
 ## Discovering Commands

@@ -79,11 +79,11 @@ umbraco user-group add-users <group-id> --ids <id,...>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user-group add-users <group-id> --ids <id,...> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user-group add-users <group-id> --ids <id,...> [flags] --dry-run
 
-# 2. Execute
-umbraco user-group add-users <group-id> --ids <id,...>
+# 2. Execute with the same flags
+umbraco user-group add-users <group-id> --ids <id,...> [flags]
 ```
 
 ### create
@@ -103,11 +103,11 @@ POST /user-group. The model is permission-heavy; start from --print-template or 
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user-group create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user-group create [flags] --dry-run
 
-# 2. Execute
-umbraco user-group create
+# 2. Execute with the same flags
+umbraco user-group create [flags]
 ```
 
 ### delete
@@ -124,11 +124,11 @@ umbraco user-group delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user-group delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user-group delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco user-group delete <id> --force
+# 2. Execute with the same flags
+umbraco user-group delete <id> --force [flags]
 ```
 
 ### remove-users
@@ -145,11 +145,11 @@ umbraco user-group remove-users <group-id> --ids <id,...>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user-group remove-users <group-id> --ids <id,...> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user-group remove-users <group-id> --ids <id,...> [flags] --dry-run
 
-# 2. Execute
-umbraco user-group remove-users <group-id> --ids <id,...>
+# 2. Execute with the same flags
+umbraco user-group remove-users <group-id> --ids <id,...> [flags]
 ```
 
 ### update
@@ -167,11 +167,11 @@ umbraco user-group update <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user-group update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user-group update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco user-group update <id>
+# 2. Execute with the same flags
+umbraco user-group update <id> [flags]
 ```
 
 ## Discovering Commands

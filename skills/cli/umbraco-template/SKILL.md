@@ -90,11 +90,11 @@ umbraco template create
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco template create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco template create [flags] --dry-run
 
-# 2. Execute
-umbraco template create
+# 2. Execute with the same flags
+umbraco template create [flags]
 ```
 
 ### update
@@ -112,11 +112,11 @@ umbraco template update <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco template update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco template update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco template update <id>
+# 2. Execute with the same flags
+umbraco template update <id> [flags]
 ```
 
 ## Discovering Commands

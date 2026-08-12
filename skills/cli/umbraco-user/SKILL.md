@@ -122,11 +122,11 @@ POST /user/{id}/client-credentials. The user must be of kind Api ('user create' 
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user client-credentials create <user-id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user client-credentials create <user-id> [flags] --dry-run
 
-# 2. Execute
-umbraco user client-credentials create <user-id>
+# 2. Execute with the same flags
+umbraco user client-credentials create <user-id> [flags]
 ```
 
 ### client-credentials delete
@@ -143,11 +143,11 @@ umbraco user client-credentials delete <user-id> <client-id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user client-credentials delete <user-id> <client-id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user client-credentials delete <user-id> <client-id> [flags] --dry-run
 
-# 2. Execute
-umbraco user client-credentials delete <user-id> <client-id> --force
+# 2. Execute with the same flags
+umbraco user client-credentials delete <user-id> <client-id> --force [flags]
 ```
 
 ### create
@@ -167,11 +167,11 @@ POST /user. Required: email, userName, name, userGroupIds ([{"id":"<guid>"}] fro
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user create [flags] --dry-run
 
-# 2. Execute
-umbraco user create
+# 2. Execute with the same flags
+umbraco user create [flags]
 ```
 
 ### delete
@@ -188,11 +188,11 @@ umbraco user delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco user delete <id> --force
+# 2. Execute with the same flags
+umbraco user delete <id> --force [flags]
 ```
 
 ### disable
@@ -209,11 +209,11 @@ umbraco user disable --ids <id,...>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user disable --ids <id,...> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user disable --ids <id,...> [flags] --dry-run
 
-# 2. Execute
-umbraco user disable --ids <id,...>
+# 2. Execute with the same flags
+umbraco user disable --ids <id,...> [flags]
 ```
 
 ### enable
@@ -230,11 +230,11 @@ umbraco user enable --ids <id,...>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user enable --ids <id,...> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user enable --ids <id,...> [flags] --dry-run
 
-# 2. Execute
-umbraco user enable --ids <id,...>
+# 2. Execute with the same flags
+umbraco user enable --ids <id,...> [flags]
 ```
 
 ### invite
@@ -253,11 +253,11 @@ POST /user/invite. Same required fields as 'user create' minus kind, plus an opt
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user invite --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user invite [flags] --dry-run
 
-# 2. Execute
-umbraco user invite
+# 2. Execute with the same flags
+umbraco user invite [flags]
 ```
 
 ### set-groups
@@ -277,11 +277,11 @@ POST /user/set-user-groups. Replaces each listed user's groups with exactly the 
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user set-groups --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user set-groups [flags] --dry-run
 
-# 2. Execute
-umbraco user set-groups
+# 2. Execute with the same flags
+umbraco user set-groups [flags]
 ```
 
 ### set-language
@@ -320,11 +320,11 @@ umbraco user unlock --ids <id,...>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user unlock --ids <id,...> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user unlock --ids <id,...> [flags] --dry-run
 
-# 2. Execute
-umbraco user unlock --ids <id,...>
+# 2. Execute with the same flags
+umbraco user unlock --ids <id,...> [flags]
 ```
 
 ### update
@@ -342,11 +342,11 @@ umbraco user update <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco user update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco user update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco user update <id>
+# 2. Execute with the same flags
+umbraco user update <id> [flags]
 ```
 
 ## Discovering Commands

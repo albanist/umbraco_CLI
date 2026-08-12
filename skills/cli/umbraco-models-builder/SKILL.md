@@ -67,11 +67,11 @@ POSTs to /models-builder/build. Pre-checks the dashboard mode so non-source-gene
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco models-builder build --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco models-builder build [flags] --dry-run
 
-# 2. Execute
-umbraco models-builder build
+# 2. Execute with the same flags
+umbraco models-builder build [flags]
 ```
 
 ## Discovering Commands
