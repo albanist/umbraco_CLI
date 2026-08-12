@@ -14,6 +14,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"go/format"
 	"log"
 	"os"
 	"sort"
@@ -338,7 +339,14 @@ func main() {
 	}
 	out.WriteString("}\n")
 
-	if err := os.WriteFile("openapi_generated.go", []byte(out.String()), 0o644); err != nil {
+	// gofmt aligns adjacent map entries into columns, so raw single-tab
+	// output drifts from what CI's formatting check expects — canonicalize
+	// before writing.
+	formatted, err := format.Source([]byte(out.String()))
+	if err != nil {
+		log.Fatalf("format generated file: %v", err)
+	}
+	if err := os.WriteFile("openapi_generated.go", formatted, 0o644); err != nil {
 		log.Fatalf("write generated file: %v", err)
 	}
 	fmt.Printf("generated %d operations\n", len(entries))
