@@ -25,6 +25,7 @@ func RegisterUser(root *cobra.Command, deps Dependencies) {
 	user.AddCommand(userStateCommand(deps, "disable", "Disable user accounts (they keep existing but cannot log in)", "disabled"))
 	user.AddCommand(userStateCommand(deps, "unlock", "Unlock user accounts locked out by failed logins", "unlocked"))
 	user.AddCommand(userSetGroups(deps))
+	user.AddCommand(userSetLanguage(deps))
 	user.AddCommand(userCurrent(deps))
 	user.AddCommand(userPermissions(deps))
 	user.AddCommand(userClientCredentials(deps))
@@ -51,11 +52,51 @@ func userList(deps Dependencies) *cobra.Command {
 }
 
 func userGet(deps Dependencies) *cobra.Command {
-	return getCommand(deps, getSpec{
-		Use:   "get <id>",
-		Short: "Get a backoffice user by ID",
-		Path:  func(args []string) string { return api.JoinPath("/user/%s", args[0]) },
-	})
+	var fields string
+	cmd := &cobra.Command{
+		Use:   "get <id> [<id>...]",
+		Short: "Get backoffice users by ID",
+		Long:  "GET /user/{id} for a single ID; several IDs fetch in one round trip via GET /user/batch (Umbraco 18.1+).",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var result any
+			var err error
+			if len(args) == 1 {
+				result, err = deps.Client.Get(cmd.Context(), api.JoinPath("/user/%s", args[0]), api.RequestOptions{Fields: fields})
+			} else {
+				ids := make([]any, len(args))
+				for i, id := range args {
+					ids[i] = id
+				}
+				result, err = deps.Client.Get(cmd.Context(), "/user/batch", api.RequestOptions{Fields: fields, Params: map[string]any{"id": ids}})
+			}
+			if err != nil {
+				return err
+			}
+			return printResult(cmd, deps, applyFieldsProjection(result, fields))
+		},
+	}
+	addFieldsFlag(cmd, &fields)
+	return cmd
+}
+
+func userSetLanguage(deps Dependencies) *cobra.Command {
+	var dryRun bool
+	cmd := &cobra.Command{
+		Use:   "set-language <iso-code>",
+		Short: "Set the current user's backoffice UI language",
+		Long:  "PUT /user/current/profile (Umbraco 18.1+). Sets the backoffice UI language of the account the CLI authenticates as (e.g. en-US, da-DK).",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			result, err := deps.Client.Put(cmd.Context(), "/user/current/profile", map[string]any{"languageIsoCode": args[0]}, api.RequestOptions{DryRun: dryRun})
+			if err != nil {
+				return err
+			}
+			return printMutationResult(cmd, deps, "updated", result, dryRun)
+		},
+	}
+	addDryRunFlag(cmd, &dryRun)
+	return cmd
 }
 
 func userCreate(deps Dependencies) *cobra.Command {

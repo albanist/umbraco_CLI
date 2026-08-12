@@ -333,18 +333,19 @@ var endpointBindings = map[string]endpointBinding{
 	"language.cultures": {Method: "GET", Path: "/culture"},
 
 	// user
-	"user.list":        {Method: "GET", Path: "/filter/user"},
-	"user.get":         {Method: "GET", Path: "/user/{id}", ExtraQuery: withFields},
-	"user.create":      {Method: "POST", Path: "/user"},
-	"user.invite":      {Method: "POST", Path: "/user/invite"},
-	"user.update":      {Method: "PUT", Path: "/user/{id}"},
-	"user.delete":      {Method: "DELETE", Path: "/user/{id}"},
-	"user.enable":      {Method: "POST", Path: "/user/enable"},
-	"user.disable":     {Method: "POST", Path: "/user/disable"},
-	"user.unlock":      {Method: "POST", Path: "/user/unlock"},
-	"user.set-groups":  {Method: "POST", Path: "/user/set-user-groups"},
-	"user.current":     {Method: "GET", Path: "/user/current", ExtraQuery: withFields},
-	"user.permissions": {Method: "GET", Path: "/user/current/permissions"},
+	"user.list":         {Method: "GET", Path: "/filter/user"},
+	"user.get":          {Method: "GET", Path: "/user/{id}", ExtraQuery: withFields, Response: &ObjectSchema{Type: "object", Description: "Several IDs fetch via GET /user/batch in one round trip (Umbraco 18.1+)"}},
+	"user.set-language": {Method: "PUT", Path: "/user/current/profile", Response: &ObjectSchema{Type: "object", Description: "Sets the backoffice UI language of the authenticated account (Umbraco 18.1+)"}},
+	"user.create":       {Method: "POST", Path: "/user"},
+	"user.invite":       {Method: "POST", Path: "/user/invite"},
+	"user.update":       {Method: "PUT", Path: "/user/{id}"},
+	"user.delete":       {Method: "DELETE", Path: "/user/{id}"},
+	"user.enable":       {Method: "POST", Path: "/user/enable"},
+	"user.disable":      {Method: "POST", Path: "/user/disable"},
+	"user.unlock":       {Method: "POST", Path: "/user/unlock"},
+	"user.set-groups":   {Method: "POST", Path: "/user/set-user-groups"},
+	"user.current":      {Method: "GET", Path: "/user/current", ExtraQuery: withFields},
+	"user.permissions":  {Method: "GET", Path: "/user/current/permissions"},
 
 	// automate (gated behind UMBRACO_CLI_ENABLE_AUTOMATE; served from the
 	// Automate Management API mount, which generated entries carry as APIRoot)

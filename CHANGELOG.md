@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `user get` now accepts several IDs, fetching them in one round trip via the new `GET /user/batch` operation (Umbraco 18.1+); a single ID keeps using `GET /user/{id}`
+- added `user set-language <iso-code>` wrapping the new `PUT /user/current/profile` operation (Umbraco 18.1+): sets the backoffice UI language of the account the CLI authenticates as
+
 - fixed `health run` and `health action` against current Umbraco versions (verified live on 18.1): both now call the modern operations first — `POST /health-check-group/{name}/check` and `POST /health-check/execute-action` (the positional health-check id fills `healthCheck.id` when `--json` omits it) — and fall back to the legacy `GET .../run` / `POST /health-check/{actionId}` routes on 404; previously both commands 404'd on current servers (reported by an agent against 18.1)
 
 ## v0.4.8 - 2026-07-03
