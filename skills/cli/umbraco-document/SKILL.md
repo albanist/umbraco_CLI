@@ -335,6 +335,7 @@ umbraco document version list <document-id>
 | `document publish-descendants <id>` | Publish a document and its entire subtree |
 | `document restore <id>` | Restore a document item from the recycle bin |
 | `document sort` | Reorder sibling documents |
+| `document sort-children [parent-id]` | Sort all children of a node by a field |
 | `document trash <id>` | Move a document to recycle bin |
 | `document unpublish <id>` | Unpublish a document |
 | `document update <id>` | Update a document |
@@ -672,6 +673,31 @@ umbraco document sort --dry-run
 
 # 2. Execute
 umbraco document sort
+```
+
+### sort-children
+
+```bash
+umbraco document sort-children [parent-id]
+```
+
+PUT /document/root/sort-children or /document/{id}/sort-children (Umbraco 18.1+). Reorders every child of the parent (root when [parent-id] is omitted) server-side by --field. For explicit manual ordering use 'document sort' instead.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--culture` | string | — | Sort by the variant name of this culture (variant content only) |
+| `--direction` | string | Ascending | Sort direction: Ascending or Descending (asc/desc accepted) |
+| `--dry-run` | bool | false | Print the planned request without executing |
+| `--field` | string | — | Sort field: Name, CreateDate, or UpdateDate (required) |
+
+**Safe pattern:**
+
+```bash
+# 1. Dry run first
+umbraco document sort-children [parent-id] --dry-run
+
+# 2. Execute
+umbraco document sort-children [parent-id]
 ```
 
 ### trash

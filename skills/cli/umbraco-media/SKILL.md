@@ -201,6 +201,7 @@ umbraco media urls <id>
 | `media create-folder [name]` | Create media folder |
 | `media move <id>` | Move media item |
 | `media restore <id>` | Restore a media item from the recycle bin |
+| `media sort-children [parent-id]` | Sort all children of a node by a field |
 | `media trash <id>` | Move media item to recycle bin |
 | `media update <id>` | Update media item |
 | `media upload <file>` | Upload a file and create a media item |
@@ -338,6 +339,30 @@ umbraco media restore <id> --dry-run
 
 # 2. Execute
 umbraco media restore <id>
+```
+
+### sort-children
+
+```bash
+umbraco media sort-children [parent-id]
+```
+
+PUT /media/root/sort-children or /media/{id}/sort-children (Umbraco 18.1+). Reorders every child of the parent (root when [parent-id] is omitted) server-side by --field. For explicit manual ordering use 'media sort' instead.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--direction` | string | Ascending | Sort direction: Ascending or Descending (asc/desc accepted) |
+| `--dry-run` | bool | false | Print the planned request without executing |
+| `--field` | string | — | Sort field: Name, CreateDate, or UpdateDate (required) |
+
+**Safe pattern:**
+
+```bash
+# 1. Dry run first
+umbraco media sort-children [parent-id] --dry-run
+
+# 2. Execute
+umbraco media sort-children [parent-id]
 ```
 
 ### trash

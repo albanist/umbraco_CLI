@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- added `document sort-children [parent-id]` and `media sort-children [parent-id]` for the new server-side reorder operations (Umbraco 18.1+): sorts every child of the parent (root when omitted) by `--field Name|CreateDate|UpdateDate` with `--direction` (asc/desc accepted, canonical casing sent), and `--culture` on documents for variant-name sorting — complementing the explicit-order `sort` commands
+
 - fixed `health run` and `health action` against current Umbraco versions (verified live on 18.1): both now call the modern operations first — `POST /health-check-group/{name}/check` and `POST /health-check/execute-action` (the positional health-check id fills `healthCheck.id` when `--json` omits it) — and fall back to the legacy `GET .../run` / `POST /health-check/{actionId}` routes on 404; previously both commands 404'd on current servers (reported by an agent against 18.1)
 
 ## v0.4.8 - 2026-07-03
