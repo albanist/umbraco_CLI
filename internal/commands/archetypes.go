@@ -670,7 +670,10 @@ func areReferencedCommand(deps Dependencies, resource string) *cobra.Command {
 			if len(ids) == 0 {
 				return fmt.Errorf("%s are-referenced requires --ids <comma-separated guids>", resource)
 			}
-			result, err := deps.Client.Get(cmd.Context(), "/"+resource+"/are-referenced", api.RequestOptions{Params: map[string]any{"id": stringsToAny(ids)}})
+			// The endpoint is paginated with a default take of 20; ask for
+			// as many rows as IDs supplied so no referenced ID is silently
+			// dropped and misread as unreferenced.
+			result, err := deps.Client.Get(cmd.Context(), "/"+resource+"/are-referenced", api.RequestOptions{Params: map[string]any{"id": stringsToAny(ids), "skip": 0, "take": len(ids)}})
 			if err != nil {
 				return err
 			}

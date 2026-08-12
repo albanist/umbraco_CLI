@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- fixed `--culture` on `document publish` (and the new `element publish`): the shortcut sent `{"cultures":[...]}`, which belongs to the unpublish model — the publish operation requires `publishSchedules` on every Management API version the CLI has vendored, so culture-scoped publishes were rejected by the server; the shortcut now builds a `publishSchedules` entry (caught by Codex review)
+- `are-referenced` bulk checks (document/media/element) now request as many rows as IDs supplied instead of relying on the server's default page size of 20, so IDs beyond the first page can no longer be misread as unreferenced
+
 - added the `element` command group for the Umbraco 18.1+ element library (reusable content items living in a folder library instead of the page tree): `list`/`children`/`ancestors`/`search`, `get`/`published`, `create` (with atomic `--publish`), `update` (with atomic `--save-and-publish`), `publish`/`unpublish`, `copy`/`move`/`trash`/`delete`, `audit-log`, reference tracking (`references`/`referenced-descendants`/`are-referenced`), the `bin` recycle-bin subgroup with `restore`, and `version` history with rollback and prevent-cleanup — 21 commands mirroring the document family through the shared builders, all verified live against 18.1
 - added `doctype allowed-in-library` listing the document types usable as library elements (`allowedInLibrary`), the discovery entry point for `element create`
 

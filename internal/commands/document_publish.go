@@ -94,8 +94,15 @@ func documentPublishBody(jsonPayload string, culture string) (map[string]any, er
 	if strings.TrimSpace(jsonPayload) != "" {
 		return parsePayload(jsonPayload)
 	}
+	// The publish model requires publishSchedules on every spec version the
+	// CLI has vendored; "cultures" belongs to the unpublish model and the
+	// server rejects it here.
 	if strings.TrimSpace(culture) != "" {
-		return map[string]any{"cultures": []any{culture}}, nil
+		return map[string]any{
+			"publishSchedules": []any{
+				map[string]any{"culture": culture},
+			},
+		}, nil
 	}
 	return map[string]any{
 		"publishSchedules": []any{

@@ -163,6 +163,9 @@ func elementUpdate(deps Dependencies) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			path := api.JoinPath("/element/%s", args[0])
+			if !saveAndPublish && strings.TrimSpace(culture) != "" {
+				return fmt.Errorf("--culture requires --save-and-publish")
+			}
 			body, err := resolveUpdateBody(ctx, deps.Client, path, "", jsonPayload, mergeJSON, nil, nil)
 			if err != nil {
 				return err
