@@ -39,11 +39,11 @@ Full Management API paths are also accepted and normalized to the core API root.
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco api <method> <path> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco api <method> <path> [flags] --dry-run
 
-# 2. Execute
-umbraco api <method> <path>
+# 2. Execute with the same flags
+umbraco api <method> <path> [flags]
 ```
 
 ## Discovering Commands

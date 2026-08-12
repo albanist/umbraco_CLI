@@ -135,11 +135,11 @@ umbraco datatype add-extension <id> <extension-alias>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco datatype add-extension <id> <extension-alias> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco datatype add-extension <id> <extension-alias> [flags] --dry-run
 
-# 2. Execute
-umbraco datatype add-extension <id> <extension-alias>
+# 2. Execute with the same flags
+umbraco datatype add-extension <id> <extension-alias> [flags]
 ```
 
 ### add-value
@@ -157,11 +157,11 @@ umbraco datatype add-value <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco datatype add-value <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco datatype add-value <id> [flags] --dry-run
 
-# 2. Execute
-umbraco datatype add-value <id>
+# 2. Execute with the same flags
+umbraco datatype add-value <id> [flags]
 ```
 
 ### block add
@@ -191,11 +191,11 @@ BlockList: --allow-at-root and --allow-in-areas are ignored (those flags only ap
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco datatype block add <datatypeId> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco datatype block add <datatypeId> [flags] --dry-run
 
-# 2. Execute
-umbraco datatype block add <datatypeId>
+# 2. Execute with the same flags
+umbraco datatype block add <datatypeId> [flags]
 ```
 
 ### block remove
@@ -214,11 +214,11 @@ Idempotent: if no block with --content-element-type is registered, no PUT is sen
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco datatype block remove <datatypeId> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco datatype block remove <datatypeId> [flags] --dry-run
 
-# 2. Execute
-umbraco datatype block remove <datatypeId>
+# 2. Execute with the same flags
+umbraco datatype block remove <datatypeId> [flags]
 ```
 
 ### block update
@@ -252,11 +252,11 @@ BlockGrid: --allow-at-root and --allow-in-areas are honored when explicitly pass
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco datatype block update <datatypeId> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco datatype block update <datatypeId> [flags] --dry-run
 
-# 2. Execute
-umbraco datatype block update <datatypeId>
+# 2. Execute with the same flags
+umbraco datatype block update <datatypeId> [flags]
 ```
 
 ### create
@@ -276,11 +276,11 @@ POST /data-type. Editor settings go in the values array ([{alias, value}, ...]);
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco datatype create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco datatype create [flags] --dry-run
 
-# 2. Execute
-umbraco datatype create
+# 2. Execute with the same flags
+umbraco datatype create [flags]
 ```
 
 ### remove-extension
@@ -296,11 +296,11 @@ umbraco datatype remove-extension <id> <extension-alias>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco datatype remove-extension <id> <extension-alias> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco datatype remove-extension <id> <extension-alias> [flags] --dry-run
 
-# 2. Execute
-umbraco datatype remove-extension <id> <extension-alias>
+# 2. Execute with the same flags
+umbraco datatype remove-extension <id> <extension-alias> [flags]
 ```
 
 ### remove-value
@@ -318,11 +318,11 @@ umbraco datatype remove-value <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco datatype remove-value <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco datatype remove-value <id> [flags] --dry-run
 
-# 2. Execute
-umbraco datatype remove-value <id>
+# 2. Execute with the same flags
+umbraco datatype remove-value <id> [flags]
 ```
 
 ### update
@@ -352,11 +352,11 @@ expects.
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco datatype update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco datatype update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco datatype update <id>
+# 2. Execute with the same flags
+umbraco datatype update <id> [flags]
 ```
 
 ## Discovering Commands

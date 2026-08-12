@@ -434,6 +434,11 @@ type createSpec struct {
 	// Flags, when non-nil, registers extra convenience flags on the command
 	// and returns a hook applied to the parsed payload after Normalize.
 	Flags func(cmd *cobra.Command) func(map[string]any) error
+	// RouteOverride, when non-nil, is consulted after the flag hook and may
+	// return a sibling collection endpoint for the POST; returning "" keeps
+	// Path. Lets a convenience flag redirect to a combined operation (e.g.
+	// document create --publish → /document/create-and-publish).
+	RouteOverride func() string
 	// ResultKeys are extra payload fields echoed into the create result
 	// alongside the defaults (e.g. "icon", "kind").
 	ResultKeys []string
@@ -477,7 +482,13 @@ func createCommand(deps Dependencies, spec createSpec) *cobra.Command {
 			if _, err := ensurePayloadID(body); err != nil {
 				return err
 			}
-			result, err := deps.Client.Post(cmd.Context(), spec.Path, body, api.RequestOptions{DryRun: dryRun})
+			path := spec.Path
+			if spec.RouteOverride != nil {
+				if override := spec.RouteOverride(); override != "" {
+					path = override
+				}
+			}
+			result, err := deps.Client.Post(cmd.Context(), path, body, api.RequestOptions{DryRun: dryRun})
 			if err != nil {
 				return err
 			}

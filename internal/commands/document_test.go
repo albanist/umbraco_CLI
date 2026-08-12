@@ -1046,29 +1046,21 @@ func TestDocumentUpdateSaveAndPublishDryRunReturnsBothSteps(t *testing.T) {
 	if err := json.Unmarshal([]byte(output), &payload); err != nil {
 		t.Fatalf("failed to decode save-and-publish output: %v", err)
 	}
-	if payload["saveAndPublish"] != true {
-		t.Fatalf("expected saveAndPublish marker, got %+v", payload)
+	if payload["saveAndPublish"] != true || payload["atomic"] != true {
+		t.Fatalf("expected saveAndPublish and atomic markers, got %+v", payload)
 	}
 
 	updated, ok := payload["updated"].(map[string]any)
 	if !ok {
 		t.Fatalf("missing updated dry-run payload: %+v", payload)
 	}
-	published, ok := payload["published"].(map[string]any)
-	if !ok {
-		t.Fatalf("missing published dry-run payload: %+v", payload)
-	}
-
-	if updated["path"] != "/umbraco/management/api/v1/document/doc-1" {
+	if updated["path"] != "/umbraco/management/api/v1/document/doc-1/update-and-publish" {
 		t.Fatalf("unexpected update dry-run path: %+v", updated)
 	}
-	if published["path"] != "/umbraco/management/api/v1/document/doc-1/publish" {
-		t.Fatalf("unexpected publish dry-run path: %+v", published)
-	}
-	body, _ := published["body"].(map[string]any)
-	cultures, _ := body["cultures"].([]any)
+	body, _ := updated["body"].(map[string]any)
+	cultures, _ := body["culturesToPublish"].([]any)
 	if len(cultures) != 1 || cultures[0] != "en-US" {
-		t.Fatalf("expected publish culture in dry-run body, got %+v", body)
+		t.Fatalf("expected culturesToPublish in dry-run body, got %+v", body)
 	}
 }
 
@@ -1104,7 +1096,7 @@ func TestDocumentPublishDryRunDefaultsToInvariantPublishSchedule(t *testing.T) {
 	}
 }
 
-func TestDocumentUpdateSaveAndPublishDryRunDefaultsToInvariantPublishSchedule(t *testing.T) {
+func TestDocumentUpdateSaveAndPublishDryRunDefaultsToInvariantCultures(t *testing.T) {
 	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/umbraco/management/api/v1/security/back-office/token":
@@ -1139,21 +1131,125 @@ func TestDocumentUpdateSaveAndPublishDryRunDefaultsToInvariantPublishSchedule(t 
 	if err := json.Unmarshal([]byte(output), &payload); err != nil {
 		t.Fatalf("failed to decode invariant save-and-publish output: %v", err)
 	}
-	published, ok := payload["published"].(map[string]any)
+	updated, ok := payload["updated"].(map[string]any)
 	if !ok {
-		t.Fatalf("missing published dry-run payload: %+v", payload)
+		t.Fatalf("missing updated dry-run payload: %+v", payload)
 	}
-	body, ok := published["body"].(map[string]any)
+	body, ok := updated["body"].(map[string]any)
 	if !ok {
-		t.Fatalf("missing publish body: %+v", published)
+		t.Fatalf("missing update body: %+v", updated)
 	}
-	publishSchedules, ok := body["publishSchedules"].([]any)
-	if !ok || len(publishSchedules) != 1 {
-		t.Fatalf("expected invariant publishSchedules payload, got %+v", body)
+	cultures, ok := body["culturesToPublish"].([]any)
+	if !ok || len(cultures) != 0 {
+		t.Fatalf("expected empty culturesToPublish for invariant content, got %+v", body)
 	}
-	entry, ok := publishSchedules[0].(map[string]any)
-	if !ok || entry["culture"] != nil {
-		t.Fatalf("expected publishSchedules culture=null, got %+v", publishSchedules[0])
+}
+
+func TestDocumentCreatePublishTargetsCombinedEndpoint(t *testing.T) {
+	var requestedPath, requestedBody string
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		default:
+			requestedPath = req.URL.Path
+			body, _ := io.ReadAll(req.Body)
+			requestedBody = string(body)
+			return endpointJSONResponse(http.StatusCreated, `null`), nil
+		}
+	})
+
+	if _, err := execute(
+		buildRootWithCollections(t, deps),
+		"document", "create",
+		"--json", `{"documentType":{"id":"dt-1"},"variants":[{"name":"Test Page"}],"values":[]}`,
+		"--publish",
+	); err != nil {
+		t.Fatalf("document create --publish failed: %v", err)
+	}
+	if requestedPath != "/umbraco/management/api/v1/document/create-and-publish" {
+		t.Fatalf("unexpected path %q", requestedPath)
+	}
+	if !strings.Contains(requestedBody, `"culturesToPublish":[]`) {
+		t.Fatalf("expected empty culturesToPublish for invariant content, got %q", requestedBody)
+	}
+}
+
+func TestDocumentCreatePublishCultureFillsCulturesToPublish(t *testing.T) {
+	var requestedBody string
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		default:
+			body, _ := io.ReadAll(req.Body)
+			requestedBody = string(body)
+			return endpointJSONResponse(http.StatusCreated, `null`), nil
+		}
+	})
+
+	if _, err := execute(
+		buildRootWithCollections(t, deps),
+		"document", "create",
+		"--json", `{"documentType":{"id":"dt-1"},"variants":[{"name":"Test Page","culture":"en-US"}],"values":[]}`,
+		"--publish",
+		"--culture", "en-US,da-DK",
+	); err != nil {
+		t.Fatalf("document create --publish --culture failed: %v", err)
+	}
+	if !strings.Contains(requestedBody, `"culturesToPublish":["en-US","da-DK"]`) {
+		t.Fatalf("expected culturesToPublish from --culture, got %q", requestedBody)
+	}
+}
+
+func TestDocumentCreateCultureRequiresPublish(t *testing.T) {
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+	})
+
+	_, err := execute(
+		buildRootWithCollections(t, deps),
+		"document", "create",
+		"--json", `{"documentType":{"id":"dt-1"},"variants":[],"values":[]}`,
+		"--culture", "en-US",
+	)
+	if err == nil || !strings.Contains(err.Error(), "--culture requires --publish") {
+		t.Fatalf("expected --culture guard error, got %v", err)
+	}
+}
+
+func TestDocumentUpdateSaveAndPublishFallsBackToTwoCallFlow(t *testing.T) {
+	var paths []string
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case strings.HasSuffix(req.URL.Path, "/update-and-publish"):
+			return endpointJSONResponse(http.StatusNotFound, `null`), nil
+		default:
+			paths = append(paths, req.Method+" "+req.URL.Path)
+			return endpointJSONResponse(http.StatusOK, `null`), nil
+		}
+	})
+
+	output, err := execute(
+		buildRootWithCollections(t, deps),
+		"document", "update", "doc-1",
+		"--json", `{"values":[],"variants":[]}`,
+		"--save-and-publish",
+	)
+	if err != nil {
+		t.Fatalf("document save-and-publish fallback failed: %v", err)
+	}
+	want := []string{
+		"PUT /umbraco/management/api/v1/document/doc-1",
+		"PUT /umbraco/management/api/v1/document/doc-1/publish",
+	}
+	if len(paths) != 2 || paths[0] != want[0] || paths[1] != want[1] {
+		t.Fatalf("expected legacy update+publish sequence, got %v", paths)
+	}
+	if strings.Contains(output, `"atomic"`) {
+		t.Fatalf("legacy fallback must not claim the atomic flow: %s", output)
 	}
 }
 

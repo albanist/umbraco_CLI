@@ -357,11 +357,11 @@ umbraco document bin delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document bin delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document bin delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document bin delete <id> --force
+# 2. Execute with the same flags
+umbraco document bin delete <id> --force [flags]
 ```
 
 ### bin empty
@@ -380,11 +380,11 @@ DELETE /recycle-bin/document. Destroys every trashed document item; there is no 
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document bin empty --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document bin empty [flags] --dry-run
 
-# 2. Execute
-umbraco document bin empty --force
+# 2. Execute with the same flags
+umbraco document bin empty --force [flags]
 ```
 
 ### bulk-update
@@ -405,11 +405,11 @@ umbraco document bulk-update
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document bulk-update --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document bulk-update [flags] --dry-run
 
-# 2. Execute
-umbraco document bulk-update --force
+# 2. Execute with the same flags
+umbraco document bulk-update --force [flags]
 ```
 
 ### copy
@@ -429,11 +429,11 @@ umbraco document copy <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document copy <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document copy <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document copy <id>
+# 2. Execute with the same flags
+umbraco document copy <id> [flags]
 ```
 
 ### create
@@ -442,20 +442,24 @@ umbraco document copy <id>
 umbraco document create
 ```
 
+POST /document, or POST /document/create-and-publish with --publish (requires Umbraco 18.1+): the document is created and published in one atomic server-side operation, with --culture naming the cultures to publish (omit for invariant content).
+
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
+| `--culture` | string | — | Comma-separated cultures to publish with --publish; omit for invariant content |
 | `--dry-run` | bool | false | Print the planned request without executing |
 | `--json` | string | — | Full JSON payload |
 | `--print-template` | bool | false | Print an annotated JSON skeleton; substitute placeholders before passing to --json |
+| `--publish` | bool | false | Create and publish atomically via POST /document/create-and-publish (Umbraco 18.1+) |
 
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document create [flags] --dry-run
 
-# 2. Execute
-umbraco document create
+# 2. Execute with the same flags
+umbraco document create [flags]
 ```
 
 ### csv-update
@@ -476,11 +480,11 @@ umbraco document csv-update
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document csv-update --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document csv-update [flags] --dry-run
 
-# 2. Execute
-umbraco document csv-update --force
+# 2. Execute with the same flags
+umbraco document csv-update --force [flags]
 ```
 
 ### domains set
@@ -501,11 +505,11 @@ PUT /document/{id}/domains. The PUT replaces the full set: pass every domain tha
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document domains set <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document domains set <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document domains set <id>
+# 2. Execute with the same flags
+umbraco document domains set <id> [flags]
 ```
 
 ### move
@@ -523,11 +527,11 @@ umbraco document move <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document move <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document move <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document move <id>
+# 2. Execute with the same flags
+umbraco document move <id> [flags]
 ```
 
 ### public-access remove
@@ -544,11 +548,11 @@ umbraco document public-access remove <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document public-access remove <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document public-access remove <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document public-access remove <id> --force
+# 2. Execute with the same flags
+umbraco document public-access remove <id> --force [flags]
 ```
 
 ### public-access set
@@ -571,11 +575,11 @@ The CLI checks whether rules already exist and issues POST (create) or PUT (repl
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document public-access set <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document public-access set <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document public-access set <id>
+# 2. Execute with the same flags
+umbraco document public-access set <id> [flags]
 ```
 
 ### publish
@@ -593,11 +597,11 @@ umbraco document publish <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document publish <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document publish <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document publish <id>
+# 2. Execute with the same flags
+umbraco document publish <id> [flags]
 ```
 
 ### publish-descendants
@@ -620,11 +624,11 @@ On variant content pass --culture per culture to publish; with no --culture the 
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document publish-descendants <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document publish-descendants <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document publish-descendants <id>
+# 2. Execute with the same flags
+umbraco document publish-descendants <id> [flags]
 ```
 
 ### restore
@@ -643,11 +647,11 @@ PUT /recycle-bin/document/{id}/restore. The restore target defaults to the item'
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document restore <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document restore <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document restore <id>
+# 2. Execute with the same flags
+umbraco document restore <id> [flags]
 ```
 
 ### sort
@@ -668,11 +672,11 @@ PUT /document/sort. Pass --ids with the desired order (sortOrder is assigned fro
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document sort --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document sort [flags] --dry-run
 
-# 2. Execute
-umbraco document sort
+# 2. Execute with the same flags
+umbraco document sort [flags]
 ```
 
 ### sort-children
@@ -713,11 +717,11 @@ umbraco document trash <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document trash <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document trash <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document trash <id>
+# 2. Execute with the same flags
+umbraco document trash <id> [flags]
 ```
 
 ### unpublish
@@ -735,11 +739,11 @@ umbraco document unpublish <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document unpublish <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document unpublish <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document unpublish <id>
+# 2. Execute with the same flags
+umbraco document unpublish <id> [flags]
 ```
 
 ### update
@@ -762,11 +766,11 @@ umbraco document update <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document update <id>
+# 2. Execute with the same flags
+umbraco document update <id> [flags]
 ```
 
 ### update-properties
@@ -800,11 +804,11 @@ In all shapes the resulting values[] is merged by alias into the current documen
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document update-properties <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document update-properties <id> [flags] --dry-run
 
-# 2. Execute
-umbraco document update-properties <id>
+# 2. Execute with the same flags
+umbraco document update-properties <id> [flags]
 ```
 
 ### version prevent-cleanup
@@ -823,11 +827,11 @@ PUT /document-version/{id}/prevent-cleanup. Pins the version by default; pass --
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document version prevent-cleanup <version-id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document version prevent-cleanup <version-id> [flags] --dry-run
 
-# 2. Execute
-umbraco document version prevent-cleanup <version-id>
+# 2. Execute with the same flags
+umbraco document version prevent-cleanup <version-id> [flags]
 ```
 
 ### version rollback
@@ -846,11 +850,11 @@ POST /document-version/{id}/rollback. Version IDs come from 'document version li
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco document version rollback <version-id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco document version rollback <version-id> [flags] --dry-run
 
-# 2. Execute
-umbraco document version rollback <version-id>
+# 2. Execute with the same flags
+umbraco document version rollback <version-id> [flags]
 ```
 
 ## Discovering Commands

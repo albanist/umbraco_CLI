@@ -134,11 +134,11 @@ umbraco doctype add-container <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco doctype add-container <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco doctype add-container <id> [flags] --dry-run
 
-# 2. Execute
-umbraco doctype add-container <id>
+# 2. Execute with the same flags
+umbraco doctype add-container <id> [flags]
 ```
 
 ### add-property
@@ -160,11 +160,11 @@ umbraco doctype add-property <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco doctype add-property <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco doctype add-property <id> [flags] --dry-run
 
-# 2. Execute
-umbraco doctype add-property <id>
+# 2. Execute with the same flags
+umbraco doctype add-property <id> [flags]
 ```
 
 ### copy
@@ -182,11 +182,11 @@ umbraco doctype copy <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco doctype copy <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco doctype copy <id> [flags] --dry-run
 
-# 2. Execute
-umbraco doctype copy <id>
+# 2. Execute with the same flags
+umbraco doctype copy <id> [flags]
 ```
 
 ### create
@@ -205,11 +205,11 @@ umbraco doctype create
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco doctype create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco doctype create [flags] --dry-run
 
-# 2. Execute
-umbraco doctype create
+# 2. Execute with the same flags
+umbraco doctype create [flags]
 ```
 
 ### move
@@ -227,11 +227,11 @@ umbraco doctype move <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco doctype move <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco doctype move <id> [flags] --dry-run
 
-# 2. Execute
-umbraco doctype move <id>
+# 2. Execute with the same flags
+umbraco doctype move <id> [flags]
 ```
 
 ### update
@@ -249,11 +249,11 @@ umbraco doctype update <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco doctype update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco doctype update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco doctype update <id>
+# 2. Execute with the same flags
+umbraco doctype update <id> [flags]
 ```
 
 ## Discovering Commands

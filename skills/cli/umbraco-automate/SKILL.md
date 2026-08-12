@@ -429,11 +429,11 @@ umbraco automate approvals decide <run-id> <step-id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate approvals decide <run-id> <step-id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate approvals decide <run-id> <step-id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate approvals decide <run-id> <step-id>
+# 2. Execute with the same flags
+umbraco automate approvals decide <run-id> <step-id> [flags]
 ```
 
 ### automation create
@@ -455,11 +455,11 @@ Creating leaves the automation as a draft -- 'automation publish <id>' makes it 
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate automation create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate automation create [flags] --dry-run
 
-# 2. Execute
-umbraco automate automation create
+# 2. Execute with the same flags
+umbraco automate automation create [flags]
 ```
 
 ### automation delete
@@ -476,11 +476,11 @@ umbraco automate automation delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate automation delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate automation delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate automation delete <id> --force
+# 2. Execute with the same flags
+umbraco automate automation delete <id> --force [flags]
 ```
 
 ### automation import
@@ -501,11 +501,11 @@ POST /automations/import. Creates a new draft automation from an export model. R
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate automation import --workspace-id <id> --file <export.json> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate automation import --workspace-id <id> --file <export.json> [flags] --dry-run
 
-# 2. Execute
-umbraco automate automation import --workspace-id <id> --file <export.json>
+# 2. Execute with the same flags
+umbraco automate automation import --workspace-id <id> --file <export.json> [flags]
 ```
 
 ### automation import-update
@@ -525,11 +525,11 @@ PUT /automations/{id}/import. Unlike 'automation import' this takes the bare exp
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate automation import-update <id> --file <export.json> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate automation import-update <id> --file <export.json> [flags] --dry-run
 
-# 2. Execute
-umbraco automate automation import-update <id> --file <export.json>
+# 2. Execute with the same flags
+umbraco automate automation import-update <id> --file <export.json> [flags]
 ```
 
 ### automation publish
@@ -545,11 +545,11 @@ umbraco automate automation publish <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate automation publish <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate automation publish <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate automation publish <id>
+# 2. Execute with the same flags
+umbraco automate automation publish <id> [flags]
 ```
 
 ### automation re-enable
@@ -565,11 +565,11 @@ umbraco automate automation re-enable <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate automation re-enable <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate automation re-enable <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate automation re-enable <id>
+# 2. Execute with the same flags
+umbraco automate automation re-enable <id> [flags]
 ```
 
 ### automation trigger
@@ -585,11 +585,11 @@ umbraco automate automation trigger <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate automation trigger <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate automation trigger <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate automation trigger <id>
+# 2. Execute with the same flags
+umbraco automate automation trigger <id> [flags]
 ```
 
 ### automation unpublish
@@ -605,11 +605,11 @@ umbraco automate automation unpublish <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate automation unpublish <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate automation unpublish <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate automation unpublish <id>
+# 2. Execute with the same flags
+umbraco automate automation unpublish <id> [flags]
 ```
 
 ### automation update
@@ -631,11 +631,11 @@ Updating creates a new draft version; 'automation publish <id>' makes it live.
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate automation update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate automation update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate automation update <id>
+# 2. Execute with the same flags
+umbraco automate automation update <id> [flags]
 ```
 
 ### connection create
@@ -655,11 +655,11 @@ POST /connections. Required: alias, name, type (from 'catalogue connection-types
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate connection create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate connection create [flags] --dry-run
 
-# 2. Execute
-umbraco automate connection create
+# 2. Execute with the same flags
+umbraco automate connection create [flags]
 ```
 
 ### connection delete
@@ -676,11 +676,11 @@ umbraco automate connection delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate connection delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate connection delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate connection delete <id> --force
+# 2. Execute with the same flags
+umbraco automate connection delete <id> --force [flags]
 ```
 
 ### connection test
@@ -696,11 +696,11 @@ umbraco automate connection test <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate connection test <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate connection test <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate connection test <id>
+# 2. Execute with the same flags
+umbraco automate connection test <id> [flags]
 ```
 
 ### connection update
@@ -718,11 +718,11 @@ umbraco automate connection update <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate connection update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate connection update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate connection update <id>
+# 2. Execute with the same flags
+umbraco automate connection update <id> [flags]
 ```
 
 ### run replay
@@ -738,11 +738,11 @@ umbraco automate run replay <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate run replay <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate run replay <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate run replay <id>
+# 2. Execute with the same flags
+umbraco automate run replay <id> [flags]
 ```
 
 ### run resume
@@ -758,11 +758,11 @@ umbraco automate run resume <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate run resume <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate run resume <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate run resume <id>
+# 2. Execute with the same flags
+umbraco automate run resume <id> [flags]
 ```
 
 ### run suspend
@@ -778,11 +778,11 @@ umbraco automate run suspend <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate run suspend <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate run suspend <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate run suspend <id>
+# 2. Execute with the same flags
+umbraco automate run suspend <id> [flags]
 ```
 
 ### run terminate
@@ -798,11 +798,11 @@ umbraco automate run terminate <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate run terminate <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate run terminate <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate run terminate <id>
+# 2. Execute with the same flags
+umbraco automate run terminate <id> [flags]
 ```
 
 ### version-history rollback
@@ -820,11 +820,11 @@ POST /version-history/{entityType}/{entityId}/{entityVersion}/rollback. The undo
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate version-history rollback <entity-type> <entity-id> <version> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate version-history rollback <entity-type> <entity-id> <version> [flags] --dry-run
 
-# 2. Execute
-umbraco automate version-history rollback <entity-type> <entity-id> <version>
+# 2. Execute with the same flags
+umbraco automate version-history rollback <entity-type> <entity-id> <version> [flags]
 ```
 
 ### workspace create
@@ -844,11 +844,11 @@ POST /workspaces. Required: alias, name, serviceAccountKey (a backoffice user GU
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate workspace create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate workspace create [flags] --dry-run
 
-# 2. Execute
-umbraco automate workspace create
+# 2. Execute with the same flags
+umbraco automate workspace create [flags]
 ```
 
 ### workspace delete
@@ -865,11 +865,11 @@ umbraco automate workspace delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate workspace delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate workspace delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate workspace delete <id> --force
+# 2. Execute with the same flags
+umbraco automate workspace delete <id> --force [flags]
 ```
 
 ### workspace group add
@@ -887,11 +887,11 @@ umbraco automate workspace group add <workspace-id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate workspace group add <workspace-id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate workspace group add <workspace-id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate workspace group add <workspace-id>
+# 2. Execute with the same flags
+umbraco automate workspace group add <workspace-id> [flags]
 ```
 
 ### workspace group remove
@@ -908,11 +908,11 @@ umbraco automate workspace group remove <workspace-id> <group-id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate workspace group remove <workspace-id> <group-id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate workspace group remove <workspace-id> <group-id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate workspace group remove <workspace-id> <group-id> --force
+# 2. Execute with the same flags
+umbraco automate workspace group remove <workspace-id> <group-id> --force [flags]
 ```
 
 ### workspace group update
@@ -930,11 +930,11 @@ umbraco automate workspace group update <workspace-id> <group-id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate workspace group update <workspace-id> <group-id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate workspace group update <workspace-id> <group-id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate workspace group update <workspace-id> <group-id>
+# 2. Execute with the same flags
+umbraco automate workspace group update <workspace-id> <group-id> [flags]
 ```
 
 ### workspace update
@@ -954,11 +954,11 @@ PUT /workspaces/{id}. The update model requires the workspace's current version 
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco automate workspace update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco automate workspace update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco automate workspace update <id>
+# 2. Execute with the same flags
+umbraco automate workspace update <id> [flags]
 ```
 
 ## Discovering Commands

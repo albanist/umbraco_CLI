@@ -432,8 +432,8 @@ func renderSubcommand(b *strings.Builder, collection string, sub skillCommand) {
 			execute += " --force"
 		}
 		b.WriteString("**Safe pattern:**\n\n")
-		fmt.Fprintf(b, "```bash\n# 1. Dry run first\numbraco %s %s --dry-run\n\n", collection, sub.FullUse)
-		fmt.Fprintf(b, "# 2. Execute\n%s\n```\n\n", execute)
+		fmt.Fprintf(b, "```bash\n# 1. Rehearse with the exact flags you will execute with\numbraco %s %s [flags] --dry-run\n\n", collection, sub.FullUse)
+		fmt.Fprintf(b, "# 2. Execute with the same flags\n%s [flags]\n```\n\n", execute)
 	}
 }
 

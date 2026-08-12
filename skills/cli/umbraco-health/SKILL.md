@@ -68,11 +68,11 @@ POST /health-check/execute-action. On current servers <id> is the health check i
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco health action <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco health action <id> [flags] --dry-run
 
-# 2. Execute
-umbraco health action <id>
+# 2. Execute with the same flags
+umbraco health action <id> [flags]
 ```
 
 ## Discovering Commands
