@@ -117,11 +117,11 @@ POST /webhook. Required fields: url, events (aliases from 'webhook events'), ena
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco webhook create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco webhook create [flags] --dry-run
 
-# 2. Execute
-umbraco webhook create
+# 2. Execute with the same flags
+umbraco webhook create [flags]
 ```
 
 ### delete
@@ -138,11 +138,11 @@ umbraco webhook delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco webhook delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco webhook delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco webhook delete <id> --force
+# 2. Execute with the same flags
+umbraco webhook delete <id> --force [flags]
 ```
 
 ### update
@@ -160,11 +160,11 @@ umbraco webhook update <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco webhook update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco webhook update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco webhook update <id>
+# 2. Execute with the same flags
+umbraco webhook update <id> [flags]
 ```
 
 ## Discovering Commands

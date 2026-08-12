@@ -122,11 +122,11 @@ umbraco mediatype create
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco mediatype create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco mediatype create [flags] --dry-run
 
-# 2. Execute
-umbraco mediatype create
+# 2. Execute with the same flags
+umbraco mediatype create [flags]
 ```
 
 ### delete
@@ -143,11 +143,11 @@ umbraco mediatype delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco mediatype delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco mediatype delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco mediatype delete <id> --force
+# 2. Execute with the same flags
+umbraco mediatype delete <id> --force [flags]
 ```
 
 ### update
@@ -165,11 +165,11 @@ umbraco mediatype update <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco mediatype update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco mediatype update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco mediatype update <id>
+# 2. Execute with the same flags
+umbraco mediatype update <id> [flags]
 ```
 
 ## Discovering Commands
