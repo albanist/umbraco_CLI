@@ -334,7 +334,7 @@ umbraco document version list <document-id>
 | `document publish <id>` | Publish a document |
 | `document publish-descendants <id>` | Publish a document and its entire subtree |
 | `document restore <id>` | Restore a document item from the recycle bin |
-| `document sort` | Reorder sibling documents |
+| `document sort` | Reorder sibling document items into an explicit order |
 | `document sort-children [parent-id]` | Sort all children of a node by a field |
 | `document trash <id>` | Move a document to recycle bin |
 | `document unpublish <id>` | Unpublish a document |
@@ -656,14 +656,14 @@ umbraco document restore <id>
 umbraco document sort
 ```
 
-PUT /document/sort. Pass --ids with the desired order (sortOrder is assigned from position) and --parent for the common parent; omit --parent when sorting root-level documents. IDs not listed keep their relative order after the sorted ones.
+PUT /document/sort. Pass --ids with the desired order (sortOrder is assigned from position) and --parent for the common parent; omit --parent when sorting root-level items. IDs not listed keep their relative order after the sorted ones.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--dry-run` | bool | false | Print the planned request without executing |
-| `--ids` | string | — | Comma-separated document GUIDs in the desired order |
+| `--ids` | string | — | Comma-separated GUIDs in the desired order |
 | `--json` | string | — | Sort payload as JSON |
-| `--parent` | string | — | Parent document ID (omit for root-level documents) |
+| `--parent` | string | — | Parent ID (omit for root-level items) |
 
 **Safe pattern:**
 
