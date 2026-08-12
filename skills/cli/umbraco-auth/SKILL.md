@@ -73,11 +73,11 @@ umbraco auth login
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco auth login --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco auth login [flags] --dry-run
 
-# 2. Execute
-umbraco auth login
+# 2. Execute with the same flags
+umbraco auth login [flags]
 ```
 
 ### logout
@@ -93,11 +93,11 @@ umbraco auth logout
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco auth logout --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco auth logout [flags] --dry-run
 
-# 2. Execute
-umbraco auth logout
+# 2. Execute with the same flags
+umbraco auth logout [flags]
 ```
 
 ## Discovering Commands

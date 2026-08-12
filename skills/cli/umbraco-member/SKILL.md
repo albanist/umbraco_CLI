@@ -103,11 +103,11 @@ These are managed by the auth subsystem (login flow / backoffice action), not by
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco member create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco member create [flags] --dry-run
 
-# 2. Execute
-umbraco member create
+# 2. Execute with the same flags
+umbraco member create [flags]
 ```
 
 ### delete
@@ -124,11 +124,11 @@ umbraco member delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco member delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco member delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco member delete <id> --force
+# 2. Execute with the same flags
+umbraco member delete <id> --force [flags]
 ```
 
 ### set-groups
@@ -155,11 +155,11 @@ Group GUIDs come from 'member-group list'. The PUT preserves every other field o
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco member set-groups <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco member set-groups <id> [flags] --dry-run
 
-# 2. Execute
-umbraco member set-groups <id>
+# 2. Execute with the same flags
+umbraco member set-groups <id> [flags]
 ```
 
 ### update
@@ -194,11 +194,11 @@ These are managed by the auth subsystem (login flow / backoffice action), not by
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco member update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco member update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco member update <id>
+# 2. Execute with the same flags
+umbraco member update <id> [flags]
 ```
 
 ### update-properties
@@ -217,11 +217,11 @@ Accepts the same three input shapes as 'document update-properties': object {ali
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco member update-properties <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco member update-properties <id> [flags] --dry-run
 
-# 2. Execute
-umbraco member update-properties <id>
+# 2. Execute with the same flags
+umbraco member update-properties <id> [flags]
 ```
 
 ## Discovering Commands

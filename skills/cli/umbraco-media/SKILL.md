@@ -219,11 +219,11 @@ umbraco media bin delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media bin delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media bin delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco media bin delete <id> --force
+# 2. Execute with the same flags
+umbraco media bin delete <id> --force [flags]
 ```
 
 ### bin empty
@@ -242,11 +242,11 @@ DELETE /recycle-bin/media. Destroys every trashed media item; there is no undo.
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media bin empty --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media bin empty [flags] --dry-run
 
-# 2. Execute
-umbraco media bin empty --force
+# 2. Execute with the same flags
+umbraco media bin empty --force [flags]
 ```
 
 ### create
@@ -264,11 +264,11 @@ umbraco media create
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media create [flags] --dry-run
 
-# 2. Execute
-umbraco media create
+# 2. Execute with the same flags
+umbraco media create [flags]
 ```
 
 ### create-folder
@@ -288,11 +288,11 @@ Folders are regular media items of the built-in Folder type, so this resolves th
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media create-folder [name] --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media create-folder [name] [flags] --dry-run
 
-# 2. Execute
-umbraco media create-folder [name]
+# 2. Execute with the same flags
+umbraco media create-folder [name] [flags]
 ```
 
 ### move
@@ -310,11 +310,11 @@ umbraco media move <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media move <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media move <id> [flags] --dry-run
 
-# 2. Execute
-umbraco media move <id>
+# 2. Execute with the same flags
+umbraco media move <id> [flags]
 ```
 
 ### restore
@@ -333,11 +333,11 @@ PUT /recycle-bin/media/{id}/restore. The restore target defaults to the item's o
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media restore <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media restore <id> [flags] --dry-run
 
-# 2. Execute
-umbraco media restore <id>
+# 2. Execute with the same flags
+umbraco media restore <id> [flags]
 ```
 
 ### trash
@@ -353,11 +353,11 @@ umbraco media trash <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media trash <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media trash <id> [flags] --dry-run
 
-# 2. Execute
-umbraco media trash <id>
+# 2. Execute with the same flags
+umbraco media trash <id> [flags]
 ```
 
 ### update
@@ -375,11 +375,11 @@ umbraco media update <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco media update <id>
+# 2. Execute with the same flags
+umbraco media update <id> [flags]
 ```
 
 ### upload
@@ -400,11 +400,11 @@ umbraco media upload <file>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco media upload <file> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco media upload <file> [flags] --dry-run
 
-# 2. Execute
-umbraco media upload <file>
+# 2. Execute with the same flags
+umbraco media upload <file> [flags]
 ```
 
 ## Discovering Commands

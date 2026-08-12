@@ -122,11 +122,11 @@ umbraco membertype create
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco membertype create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco membertype create [flags] --dry-run
 
-# 2. Execute
-umbraco membertype create
+# 2. Execute with the same flags
+umbraco membertype create [flags]
 ```
 
 ### delete
@@ -143,11 +143,11 @@ umbraco membertype delete <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco membertype delete <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco membertype delete <id> [flags] --dry-run
 
-# 2. Execute
-umbraco membertype delete <id> --force
+# 2. Execute with the same flags
+umbraco membertype delete <id> --force [flags]
 ```
 
 ### update
@@ -165,11 +165,11 @@ umbraco membertype update <id>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco membertype update <id> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco membertype update <id> [flags] --dry-run
 
-# 2. Execute
-umbraco membertype update <id>
+# 2. Execute with the same flags
+umbraco membertype update <id> [flags]
 ```
 
 ## Discovering Commands

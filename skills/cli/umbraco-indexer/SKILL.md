@@ -81,11 +81,11 @@ POST /indexer/{indexName}/rebuild. Rebuilds the index from scratch — the stand
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco indexer rebuild <index-name> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco indexer rebuild <index-name> [flags] --dry-run
 
-# 2. Execute
-umbraco indexer rebuild <index-name> --force
+# 2. Execute with the same flags
+umbraco indexer rebuild <index-name> --force [flags]
 ```
 
 ## Discovering Commands

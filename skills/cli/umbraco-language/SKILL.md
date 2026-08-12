@@ -108,11 +108,11 @@ POST /language. Either pass the full payload via --json, or use the convenience 
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco language create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco language create [flags] --dry-run
 
-# 2. Execute
-umbraco language create
+# 2. Execute with the same flags
+umbraco language create [flags]
 ```
 
 ### delete
@@ -129,11 +129,11 @@ umbraco language delete <iso-code>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco language delete <iso-code> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco language delete <iso-code> [flags] --dry-run
 
-# 2. Execute
-umbraco language delete <iso-code> --force
+# 2. Execute with the same flags
+umbraco language delete <iso-code> --force [flags]
 ```
 
 ### update
@@ -151,11 +151,11 @@ umbraco language update <iso-code>
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco language update <iso-code> --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco language update <iso-code> [flags] --dry-run
 
-# 2. Execute
-umbraco language update <iso-code>
+# 2. Execute with the same flags
+umbraco language update <iso-code> [flags]
 ```
 
 ## Discovering Commands

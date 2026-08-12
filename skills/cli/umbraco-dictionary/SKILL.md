@@ -88,11 +88,11 @@ umbraco dictionary create
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco dictionary create --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco dictionary create [flags] --dry-run
 
-# 2. Execute
-umbraco dictionary create
+# 2. Execute with the same flags
+umbraco dictionary create [flags]
 ```
 
 ### import
@@ -112,11 +112,11 @@ umbraco dictionary import
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco dictionary import --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco dictionary import [flags] --dry-run
 
-# 2. Execute
-umbraco dictionary import
+# 2. Execute with the same flags
+umbraco dictionary import [flags]
 ```
 
 ## Discovering Commands

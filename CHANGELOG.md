@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- added `document create --publish [--culture <csv>]` targeting the new atomic `POST /document/create-and-publish` operation (Umbraco 18.1+): the document is created and published in one server-side call; `--culture` names the cultures to publish, omitted = invariant (empty `culturesToPublish`, matching the backoffice convention)
+- `document update --save-and-publish` now uses the atomic `PUT /document/{id}/update-and-publish` operation when the server supports it (Umbraco 18.1+), which eliminates the invariant-content publish race the two-call flow had to retry around; older servers fall back to the previous separate update+publish calls, and the output gains an `atomic: true` marker on the atomic path
+
 - fixed `health run` and `health action` against current Umbraco versions (verified live on 18.1): both now call the modern operations first — `POST /health-check-group/{name}/check` and `POST /health-check/execute-action` (the positional health-check id fills `healthCheck.id` when `--json` omits it) — and fall back to the legacy `GET .../run` / `POST /health-check/{actionId}` routes on 404; previously both commands 404'd on current servers (reported by an agent against 18.1)
 
 ## v0.4.8 - 2026-07-03

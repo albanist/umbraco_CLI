@@ -58,11 +58,11 @@ POST /published-cache/rebuild. Rebuilds the published content cache from the dat
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco published-cache rebuild --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco published-cache rebuild [flags] --dry-run
 
-# 2. Execute
-umbraco published-cache rebuild --force
+# 2. Execute with the same flags
+umbraco published-cache rebuild --force [flags]
 ```
 
 ### reload
@@ -80,11 +80,11 @@ POST /published-cache/reload. Reloads the in-memory published cache from the cac
 **Safe pattern:**
 
 ```bash
-# 1. Dry run first
-umbraco published-cache reload --dry-run
+# 1. Rehearse with the exact flags you will execute with
+umbraco published-cache reload [flags] --dry-run
 
-# 2. Execute
-umbraco published-cache reload
+# 2. Execute with the same flags
+umbraco published-cache reload [flags]
 ```
 
 ## Discovering Commands
