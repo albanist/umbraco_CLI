@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- added the `element` command group for the Umbraco 18.1+ element library (reusable content items living in a folder library instead of the page tree): `list`/`children`/`ancestors`/`search`, `get`/`published`, `create` (with atomic `--publish`), `update` (with atomic `--save-and-publish`), `publish`/`unpublish`, `copy`/`move`/`trash`/`delete`, `audit-log`, reference tracking (`references`/`referenced-descendants`/`are-referenced`), the `bin` recycle-bin subgroup with `restore`, and `version` history with rollback and prevent-cleanup — 21 commands mirroring the document family through the shared builders, all verified live against 18.1
+- added `doctype allowed-in-library` listing the document types usable as library elements (`allowedInLibrary`), the discovery entry point for `element create`
+
 - added `document create --publish [--culture <csv>]` targeting the new atomic `POST /document/create-and-publish` operation (Umbraco 18.1+): the document is created and published in one server-side call; `--culture` names the cultures to publish, omitted = invariant (empty `culturesToPublish`, matching the backoffice convention)
 - `document update --save-and-publish` now uses the atomic `PUT /document/{id}/update-and-publish` operation when the server supports it (Umbraco 18.1+), which eliminates the invariant-content publish race the two-call flow had to retry around; older servers fall back to the previous separate update+publish calls, and the output gains an `atomic: true` marker on the atomic path
 
