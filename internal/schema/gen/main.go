@@ -103,10 +103,21 @@ func (g *generator) resolve(s jsonSchema) (jsonSchema, string) {
 		case len(s.OneOf) == 1:
 			s = s.OneOf[0]
 		default:
-			return s, name
+			return normalizeEnumOnly(s), name
 		}
 	}
-	return s, name
+	return normalizeEnumOnly(s), name
+}
+
+// normalizeEnumOnly restores the string type on enum-only schemas: v18's
+// OpenAPI 3.1 document omits "type" on models like DirectionModel where the
+// 3.0 document declared "type": "string", which would otherwise regenerate
+// parameters with an empty type.
+func normalizeEnumOnly(s jsonSchema) jsonSchema {
+	if s.Type == "" && len(s.Enum) > 0 {
+		s.Type = "string"
+	}
+	return s
 }
 
 // typeString renders a schema as the short human/agent-readable type label
