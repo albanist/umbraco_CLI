@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"sort"
 	"strings"
 
 	"umbraco-cli/internal/api"
@@ -204,4 +205,75 @@ func newUUIDv4() (string, error) {
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
+}
+
+// doctypeReorderPatch builds the properties sortOrder patch for a full
+// reorder: the listed aliases get sortOrder from their position, and the
+// remaining properties in the same container follow after them in their
+// current relative order, so the resulting order is fully deterministic.
+// sortOrder is scoped per container, so every listed alias must live in the
+// same container.
+func doctypeReorderPatch(doctype map[string]any, ordered []string) ([]any, error) {
+	properties, _ := doctype["properties"].([]any)
+	byAlias := make(map[string]map[string]any, len(properties))
+	for _, item := range properties {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if alias, _ := entry["alias"].(string); alias != "" {
+			byAlias[alias] = entry
+		}
+	}
+
+	containerOf := func(entry map[string]any) string {
+		if container, ok := entry["container"].(map[string]any); ok {
+			id, _ := container["id"].(string)
+			return id
+		}
+		return ""
+	}
+
+	var scope string
+	listed := make(map[string]struct{}, len(ordered))
+	for i, alias := range ordered {
+		entry, ok := byAlias[alias]
+		if !ok {
+			return nil, fmt.Errorf("doctype has no property with alias %q", alias)
+		}
+		if i == 0 {
+			scope = containerOf(entry)
+		} else if containerOf(entry) != scope {
+			return nil, fmt.Errorf("properties %q and %q live in different containers; sortOrder is scoped per container, so reorder one container at a time", ordered[0], alias)
+		}
+		listed[alias] = struct{}{}
+	}
+
+	patch := make([]any, 0, len(properties))
+	for i, alias := range ordered {
+		patch = append(patch, map[string]any{"alias": alias, "sortOrder": i})
+	}
+
+	rest := make([]map[string]any, 0, len(properties))
+	for _, item := range properties {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		alias, _ := entry["alias"].(string)
+		if _, isListed := listed[alias]; isListed || alias == "" || containerOf(entry) != scope {
+			continue
+		}
+		rest = append(rest, entry)
+	}
+	sort.SliceStable(rest, func(i, j int) bool {
+		left, _ := rest[i]["sortOrder"].(float64)
+		right, _ := rest[j]["sortOrder"].(float64)
+		return left < right
+	})
+	for i, entry := range rest {
+		patch = append(patch, map[string]any{"alias": entry["alias"], "sortOrder": len(ordered) + i})
+	}
+
+	return patch, nil
 }

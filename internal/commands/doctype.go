@@ -26,6 +26,7 @@ func RegisterDoctype(root *cobra.Command, deps Dependencies) {
 	doctype.AddCommand(doctypeUpdate(deps))
 	doctype.AddCommand(doctypeAddProperty(deps))
 	doctype.AddCommand(doctypeAddContainer(deps))
+	doctype.AddCommand(doctypeReorderProperties(deps))
 	doctype.AddCommand(doctypeCopy(deps))
 	doctype.AddCommand(doctypeMove(deps))
 	doctype.AddCommand(doctypeDelete(deps))
@@ -298,6 +299,74 @@ func doctypeAddProperty(deps Dependencies) *cobra.Command {
 	cmd.Flags().StringVar(&container, "container", "", "Name of the existing tab/group container that should hold the property (case-insensitive match)")
 	cmd.Flags().StringVar(&description, "description", "", "Optional property description")
 	cmd.Flags().BoolVar(&mandatory, "mandatory", false, "Mark the property as mandatory")
+	addDryRunFlag(cmd, &dryRun)
+	return cmd
+}
+
+func doctypeReorderProperties(deps Dependencies) *cobra.Command {
+	var aliasesCSV string
+	var alias string
+	var sortOrder int
+	var dryRun bool
+	cmd := &cobra.Command{
+		Use:   "reorder-properties <id>",
+		Short: "Change the order of properties on a document type",
+		Long:  "GET /document-type/{id} + PUT /document-type/{id}. The Management API has no dedicated reorder operation — property order is the per-container sortOrder field — so this fetches the document type, rewrites sortOrder values, and PUTs the result back. Two modes: --aliases assigns positions 0..n to the listed properties (all in one container) with the container's remaining properties following in their current relative order; --alias with --sort-order sets a single property's sortOrder verbatim (other properties keep theirs, so equal values sort arbitrarily — prefer --aliases for a full deterministic order).",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			hasList := strings.TrimSpace(aliasesCSV) != ""
+			hasSingle := strings.TrimSpace(alias) != ""
+			if hasList == hasSingle {
+				return fmt.Errorf("doctype reorder-properties requires exactly one of --aliases (full order) or --alias with --sort-order (single move)")
+			}
+			if hasSingle && sortOrder < 0 {
+				return fmt.Errorf("--alias requires --sort-order <n> (0-based)")
+			}
+			if hasList && sortOrder >= 0 {
+				return fmt.Errorf("--sort-order only applies to --alias")
+			}
+
+			ordered := uniqueCSV(aliasesCSV)
+			if hasList && len(ordered) == 0 {
+				return fmt.Errorf("--aliases parsed to no property aliases; pass a comma-separated list like --aliases title,subtitle")
+			}
+
+			ctx := cmd.Context()
+			current, err := fetchDoctypeObject(ctx, deps.Client, args[0])
+			if err != nil {
+				return err
+			}
+
+			var patch []any
+			if hasSingle {
+				if !hasDoctypeProperty(current, alias) {
+					return fmt.Errorf("doctype %s has no property with alias %q", args[0], alias)
+				}
+				patch = []any{map[string]any{"alias": alias, "sortOrder": sortOrder}}
+			} else {
+				patch, err = doctypeReorderPatch(current, ordered)
+				if err != nil {
+					return err
+				}
+			}
+
+			merged := mergeAliasPayload(current, map[string]any{"properties": patch})
+			result, err := deps.Client.Put(
+				ctx,
+				api.JoinPath("/document-type/%s", args[0]),
+				merged,
+				api.RequestOptions{DryRun: dryRun},
+			)
+			if err != nil {
+				return err
+			}
+			return printMutationResult(cmd, deps, "updated", result, dryRun)
+		},
+	}
+
+	cmd.Flags().StringVar(&aliasesCSV, "aliases", "", "Comma-separated property aliases in the desired order (positions become sortOrder; unlisted properties in the container follow in their current order)")
+	cmd.Flags().StringVar(&alias, "alias", "", "Single property alias to move (requires --sort-order)")
+	cmd.Flags().IntVar(&sortOrder, "sort-order", -1, "Target sortOrder for --alias (0-based)")
 	addDryRunFlag(cmd, &dryRun)
 	return cmd
 }
