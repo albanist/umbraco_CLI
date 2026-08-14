@@ -1113,6 +1113,9 @@ func TestDoctypeReorderPropertiesRejectsUnknownAliasAndModeMix(t *testing.T) {
 	if _, err := execute(buildRootWithCollections(t, deps), "doctype", "reorder-properties", "dt-1", "--aliases", "missing"); err == nil || !strings.Contains(err.Error(), `no property with alias "missing"`) {
 		t.Fatalf("expected unknown alias error, got %v", err)
 	}
+	if _, err := execute(buildRootWithCollections(t, deps), "doctype", "reorder-properties", "dt-1", "--aliases", ","); err == nil || !strings.Contains(err.Error(), "parsed to no property aliases") {
+		t.Fatalf("expected empty alias list rejection, got %v", err)
+	}
 	if _, err := execute(buildRootWithCollections(t, deps), "doctype", "reorder-properties", "dt-1"); err == nil || !strings.Contains(err.Error(), "exactly one of") {
 		t.Fatalf("expected mode requirement error, got %v", err)
 	}

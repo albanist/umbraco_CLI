@@ -326,6 +326,11 @@ func doctypeReorderProperties(deps Dependencies) *cobra.Command {
 				return fmt.Errorf("--sort-order only applies to --alias")
 			}
 
+			ordered := uniqueCSV(aliasesCSV)
+			if hasList && len(ordered) == 0 {
+				return fmt.Errorf("--aliases parsed to no property aliases; pass a comma-separated list like --aliases title,subtitle")
+			}
+
 			ctx := cmd.Context()
 			current, err := fetchDoctypeObject(ctx, deps.Client, args[0])
 			if err != nil {
@@ -339,7 +344,7 @@ func doctypeReorderProperties(deps Dependencies) *cobra.Command {
 				}
 				patch = []any{map[string]any{"alias": alias, "sortOrder": sortOrder}}
 			} else {
-				patch, err = doctypeReorderPatch(current, uniqueCSV(aliasesCSV))
+				patch, err = doctypeReorderPatch(current, ordered)
 				if err != nil {
 					return err
 				}
