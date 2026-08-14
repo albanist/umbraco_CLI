@@ -136,6 +136,7 @@ umbraco doctype search
 | `doctype copy <id>` | Copy document type |
 | `doctype create` | Create document type (pass --element to create an element type) |
 | `doctype move <id>` | Move document type |
+| `doctype reorder-properties <id>` | Change the order of properties on a document type |
 | `doctype update <id>` | Update document type |
 
 ### add-container
@@ -252,6 +253,31 @@ umbraco doctype move <id> [flags] --dry-run
 
 # 2. Execute with the same flags
 umbraco doctype move <id> [flags]
+```
+
+### reorder-properties
+
+```bash
+umbraco doctype reorder-properties <id>
+```
+
+GET /document-type/{id} + PUT /document-type/{id}. The Management API has no dedicated reorder operation — property order is the per-container sortOrder field — so this fetches the document type, rewrites sortOrder values, and PUTs the result back. Two modes: --aliases assigns positions 0..n to the listed properties (all in one container) with the container's remaining properties following in their current relative order; --alias with --sort-order sets a single property's sortOrder verbatim (other properties keep theirs, so equal values sort arbitrarily — prefer --aliases for a full deterministic order).
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--alias` | string | — | Single property alias to move (requires --sort-order) |
+| `--aliases` | string | — | Comma-separated property aliases in the desired order (positions become sortOrder; unlisted properties in the container follow in their current order) |
+| `--dry-run` | bool | false | Print the planned request without executing |
+| `--sort-order` | int | -1 | Target sortOrder for --alias (0-based) |
+
+**Safe pattern:**
+
+```bash
+# 1. Rehearse with the exact flags you will execute with
+umbraco doctype reorder-properties <id> [flags] --dry-run
+
+# 2. Execute with the same flags
+umbraco doctype reorder-properties <id> [flags]
 ```
 
 ### update

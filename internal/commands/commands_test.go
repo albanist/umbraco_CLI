@@ -103,8 +103,8 @@ func TestCommandCountsMatchMVP(t *testing.T) {
 		total += len(found.Commands())
 	}
 
-	if total != 221 {
-		t.Fatalf("expected 221 collection commands, got %d", total)
+	if total != 222 {
+		t.Fatalf("expected 222 collection commands, got %d", total)
 	}
 }
 
@@ -182,29 +182,30 @@ func TestRegisteredAPICommandsHaveSchemas(t *testing.T) {
 		"membertype":     {},
 	}
 	convenienceCommands := map[string]string{
-		"document.bulk-update":      "batch convenience command",
-		"document.csv-update":       "CSV-driven batch convenience command",
-		"dictionary.export":         "aggregate export command built from list/get calls",
-		"doctype.add-property":      "payload mutation convenience command",
-		"doctype.add-container":     "payload mutation convenience command",
-		"datatype.extensions":       "payload inspection convenience command",
-		"datatype.add-extension":    "payload mutation convenience command",
-		"datatype.remove-extension": "payload mutation convenience command",
-		"datatype.add-value":        "payload mutation convenience command",
-		"datatype.remove-value":     "payload mutation convenience command",
-		"datatype.block":            "Block List / Block Grid mutation convenience command (subgroup)",
-		"member.update-properties":  "payload mutation convenience command (shares the values[] parser with document update-properties)",
-		"member.set-groups":         "idempotent convenience over PUT /member/{id} mutating the groups[] array",
-		"logs.levels":               "hidden compatibility stub for removed v17 endpoint",
-		"logs.tail":                 "client-side polling composite over the log-viewer list endpoint",
-		"document.version":          "version history subgroup (list/get/rollback/prevent-cleanup)",
-		"document.domains":          "culture domains subgroup (get/set)",
-		"document.public-access":    "member protection subgroup (get/set/remove)",
-		"user.client-credentials":   "OAuth credential subgroup (list/create/delete)",
-		"document.bin":              "recycle bin subgroup (list/children/original-parent/delete/empty)",
-		"media.bin":                 "recycle bin subgroup (list/children/original-parent/delete/empty)",
-		"element.bin":               "recycle bin subgroup (list/children/original-parent/delete/empty)",
-		"element.version":           "version history subgroup (list/get/rollback/prevent-cleanup)",
+		"document.bulk-update":       "batch convenience command",
+		"document.csv-update":        "CSV-driven batch convenience command",
+		"dictionary.export":          "aggregate export command built from list/get calls",
+		"doctype.add-property":       "payload mutation convenience command",
+		"doctype.add-container":      "payload mutation convenience command",
+		"doctype.reorder-properties": "payload mutation convenience command (read-modify-write over PUT /document-type/{id})",
+		"datatype.extensions":        "payload inspection convenience command",
+		"datatype.add-extension":     "payload mutation convenience command",
+		"datatype.remove-extension":  "payload mutation convenience command",
+		"datatype.add-value":         "payload mutation convenience command",
+		"datatype.remove-value":      "payload mutation convenience command",
+		"datatype.block":             "Block List / Block Grid mutation convenience command (subgroup)",
+		"member.update-properties":   "payload mutation convenience command (shares the values[] parser with document update-properties)",
+		"member.set-groups":          "idempotent convenience over PUT /member/{id} mutating the groups[] array",
+		"logs.levels":                "hidden compatibility stub for removed v17 endpoint",
+		"logs.tail":                  "client-side polling composite over the log-viewer list endpoint",
+		"document.version":           "version history subgroup (list/get/rollback/prevent-cleanup)",
+		"document.domains":           "culture domains subgroup (get/set)",
+		"document.public-access":     "member protection subgroup (get/set/remove)",
+		"user.client-credentials":    "OAuth credential subgroup (list/create/delete)",
+		"document.bin":               "recycle bin subgroup (list/children/original-parent/delete/empty)",
+		"media.bin":                  "recycle bin subgroup (list/children/original-parent/delete/empty)",
+		"element.bin":                "recycle bin subgroup (list/children/original-parent/delete/empty)",
+		"element.version":            "version history subgroup (list/get/rollback/prevent-cleanup)",
 	}
 
 	missing := make([]string, 0)

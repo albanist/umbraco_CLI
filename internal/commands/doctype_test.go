@@ -977,3 +977,146 @@ func TestDoctypeUpdateRejectsJSONAndMergeJSONTogether(t *testing.T) {
 		t.Fatalf("unexpected merge-json validation error: %v", err)
 	}
 }
+
+const reorderDoctypePayload = `{
+  "id":"dt-1",
+  "alias":"partnerPage",
+  "name":"Partner Page",
+  "icon":"icon-document",
+  "properties":[
+    {"alias":"title","name":"Title","container":{"id":"c-1"},"sortOrder":0,"dataType":{"id":"dt-text"}},
+    {"alias":"subtitle","name":"Subtitle","container":{"id":"c-1"},"sortOrder":1,"dataType":{"id":"dt-text"}},
+    {"alias":"body","name":"Body","container":{"id":"c-1"},"sortOrder":2,"dataType":{"id":"dt-rte"}},
+    {"alias":"seoTitle","name":"SEO Title","container":{"id":"c-2"},"sortOrder":0,"dataType":{"id":"dt-text"}}
+  ],
+  "containers":[
+    {"id":"c-1","name":"Content","type":"Tab","sortOrder":0},
+    {"id":"c-2","name":"SEO","type":"Tab","sortOrder":1}
+  ]
+}`
+
+func reorderDoctypeDeps(t *testing.T, observed *map[string]any) Dependencies {
+	t.Helper()
+	return datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/document-type/dt-1":
+			if req.Method == http.MethodGet {
+				return datatypeJSONResponse(http.StatusOK, reorderDoctypePayload), nil
+			}
+			if req.Method == http.MethodPut {
+				if err := json.NewDecoder(req.Body).Decode(observed); err != nil {
+					t.Fatalf("failed to decode put payload: %v", err)
+				}
+				return datatypeJSONResponse(http.StatusOK, `null`), nil
+			}
+			return datatypeJSONResponse(http.StatusMethodNotAllowed, `null`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+}
+
+func reorderSortOrders(t *testing.T, body map[string]any) map[string]float64 {
+	t.Helper()
+	properties, ok := body["properties"].([]any)
+	if !ok {
+		t.Fatalf("missing properties in put payload: %+v", body)
+	}
+	orders := make(map[string]float64, len(properties))
+	for _, item := range properties {
+		entry := item.(map[string]any)
+		alias, _ := entry["alias"].(string)
+		value, _ := entry["sortOrder"].(float64)
+		orders[alias] = value
+	}
+	return orders
+}
+
+func TestDoctypeReorderPropertiesAssignsPositionsAndKeepsRest(t *testing.T) {
+	var observed map[string]any
+	deps := reorderDoctypeDeps(t, &observed)
+
+	if _, err := execute(
+		buildRootWithCollections(t, deps),
+		"doctype", "reorder-properties", "dt-1",
+		"--aliases", "body,title",
+	); err != nil {
+		t.Fatalf("doctype reorder-properties failed: %v", err)
+	}
+
+	orders := reorderSortOrders(t, observed)
+	if orders["body"] != 0 || orders["title"] != 1 {
+		t.Fatalf("expected listed aliases to take positions 0,1, got %+v", orders)
+	}
+	if orders["subtitle"] != 2 {
+		t.Fatalf("expected unlisted container property to follow the listed ones, got %+v", orders)
+	}
+	if orders["seoTitle"] != 0 {
+		t.Fatalf("expected other-container property untouched, got %+v", orders)
+	}
+	if name := func() string {
+		for _, item := range observed["properties"].([]any) {
+			entry := item.(map[string]any)
+			if entry["alias"] == "body" {
+				s, _ := entry["name"].(string)
+				return s
+			}
+		}
+		return ""
+	}(); name != "Body" {
+		t.Fatalf("expected merge to preserve property fields, got name %q", name)
+	}
+}
+
+func TestDoctypeReorderPropertiesSingleMoveSetsSortOrderVerbatim(t *testing.T) {
+	var observed map[string]any
+	deps := reorderDoctypeDeps(t, &observed)
+
+	if _, err := execute(
+		buildRootWithCollections(t, deps),
+		"doctype", "reorder-properties", "dt-1",
+		"--alias", "body",
+		"--sort-order", "0",
+	); err != nil {
+		t.Fatalf("doctype reorder-properties single move failed: %v", err)
+	}
+
+	orders := reorderSortOrders(t, observed)
+	if orders["body"] != 0 {
+		t.Fatalf("expected body moved to 0, got %+v", orders)
+	}
+	if orders["title"] != 0 || orders["subtitle"] != 1 {
+		t.Fatalf("expected other properties to keep their sortOrder, got %+v", orders)
+	}
+}
+
+func TestDoctypeReorderPropertiesRejectsCrossContainerOrder(t *testing.T) {
+	var observed map[string]any
+	deps := reorderDoctypeDeps(t, &observed)
+
+	_, err := execute(
+		buildRootWithCollections(t, deps),
+		"doctype", "reorder-properties", "dt-1",
+		"--aliases", "title,seoTitle",
+	)
+	if err == nil || !strings.Contains(err.Error(), "different containers") {
+		t.Fatalf("expected cross-container rejection, got %v", err)
+	}
+}
+
+func TestDoctypeReorderPropertiesRejectsUnknownAliasAndModeMix(t *testing.T) {
+	var observed map[string]any
+	deps := reorderDoctypeDeps(t, &observed)
+
+	if _, err := execute(buildRootWithCollections(t, deps), "doctype", "reorder-properties", "dt-1", "--aliases", "missing"); err == nil || !strings.Contains(err.Error(), `no property with alias "missing"`) {
+		t.Fatalf("expected unknown alias error, got %v", err)
+	}
+	if _, err := execute(buildRootWithCollections(t, deps), "doctype", "reorder-properties", "dt-1"); err == nil || !strings.Contains(err.Error(), "exactly one of") {
+		t.Fatalf("expected mode requirement error, got %v", err)
+	}
+	if _, err := execute(buildRootWithCollections(t, deps), "doctype", "reorder-properties", "dt-1", "--alias", "body"); err == nil || !strings.Contains(err.Error(), "--sort-order") {
+		t.Fatalf("expected sort-order requirement error, got %v", err)
+	}
+}

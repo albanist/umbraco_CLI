@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- added `doctype reorder-properties <id>` closing an agent-reported gap: the Management API has no property-reorder operation (order is the per-container `sortOrder` field, changed only via a full document-type PUT), so reordering previously meant hand-rolling a read-modify-write through `--merge-json`. Two modes: `--aliases a,b,c` assigns positions with the container's remaining properties following in their current order, and `--alias x --sort-order n` moves one property; both verified live on 18.1
+
 ## v0.4.9 - 2026-08-12
 
 - fixed `--culture` on `document publish` (and the new `element publish`): the shortcut sent `{"cultures":[...]}`, which belongs to the unpublish model — the publish operation requires `publishSchedules` on every Management API version the CLI has vendored, so culture-scoped publishes were rejected by the server; the shortcut now builds a `publishSchedules` entry (caught by Codex review)

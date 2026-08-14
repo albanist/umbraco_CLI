@@ -333,7 +333,7 @@ testing) are not part of this repo — get those from
 - `document` (30) — incl. `urls`, `version` history/rollback, `audit-log`, `publish-descendants`, `sort`, `domains`, `public-access`, and the `bin` recycle-bin subgroup
 - `element` (21) — the Umbraco 18.1+ element library: CRUD with atomic `create --publish`/`update --save-and-publish`, publish lifecycle, `version` history/rollback, references, and the `bin` recycle-bin subgroup
 - `media` (17) — incl. `restore` and the `bin` recycle-bin subgroup
-- `doctype` (13) / `mediatype` (8) / `membertype` (8) — the full schema type family, all with `--recursive --types-only` folder handling
+- `doctype` (14) / `mediatype` (8) / `membertype` (8) — the full schema type family, all with `--recursive --types-only` folder handling
 - `datatype` (14)
 - `dictionary` (6)
 - `template` (6)
