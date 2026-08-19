@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -19,13 +20,14 @@ import (
 )
 
 // deployDriftFoundError maps "the command ran cleanly and found drift" to
-// exit code 2, mirroring schema diff's contract.
+// exit code 7 — its own documented code, since 2 is reserved for schema
+// diff differences by the global exit-code contract.
 type deployDriftFoundError struct{ drifted, missing int }
 
 func (e deployDriftFoundError) Error() string {
 	return fmt.Sprintf("deploy status found %d drifted and %d missing artifacts", e.drifted, e.missing)
 }
-func (deployDriftFoundError) ExitCode() int { return 2 }
+func (deployDriftFoundError) ExitCode() int { return 7 }
 
 func deployStatus(deps Dependencies) *cobra.Command {
 	var udaDir string
@@ -53,6 +55,14 @@ Exit 2 when drift or missing entities are found (suppress with --exit-zero); par
 			}
 			if len(artifacts) == 0 {
 				return fmt.Errorf("no .uda artifacts found in %s (pass --uda-dir pointing at the site repo's umbraco/Deploy/Revision)", udaDir)
+			}
+
+			// Pre-flight: an unreachable or unauthenticated environment must
+			// surface with its real exit code (3/4), not degrade every
+			// comparison to "unknown" and exit 0 — CI would read an
+			// unperformed pre-flight as a passed one.
+			if _, err := deps.Client.Get(cmd.Context(), "/server/status", api.RequestOptions{}); err != nil {
+				return fmt.Errorf("deploy status cannot reach the target environment: %w", err)
 			}
 
 			results := compareArtifacts(cmd.Context(), deps, artifacts, flagStepAliases, concurrency)
@@ -162,25 +172,30 @@ func parseUdaFile(path string) udaArtifact {
 	artifact.Body = body
 	udi, _ := body["Udi"].(string)
 	artifact.Kind, artifact.GUID = parseUdi(udi)
-	if artifact.Kind == "" {
-		artifact.Err = fmt.Errorf("no usable Udi in artifact")
+	if artifact.Kind == "" || artifact.GUID == "" {
+		artifact.Err = fmt.Errorf("no usable Udi in artifact (%q)", udi)
 	}
 	return artifact
 }
 
 // parseUdi splits umb://<entity-type>/<guid-without-dashes> into the entity
-// type and a dashed GUID the Management API accepts.
+// type and a dashed GUID the Management API accepts. A malformed identifier
+// returns an empty GUID so the caller rejects the artifact instead of
+// issuing a request against a collection or invalid-UUID route.
 func parseUdi(udi string) (string, string) {
 	rest, ok := strings.CutPrefix(udi, "umb://")
 	if !ok {
 		return "", ""
 	}
 	kind, hex, ok := strings.Cut(rest, "/")
-	if !ok || len(hex) != 32 {
+	if !ok || !udiHexPattern.MatchString(hex) {
 		return kind, ""
 	}
+	hex = strings.ToLower(hex)
 	return kind, strings.Join([]string{hex[0:8], hex[8:12], hex[12:16], hex[16:20], hex[20:32]}, "-")
 }
+
+var udiHexPattern = regexp.MustCompile(`^[0-9a-fA-F]{32}$`)
 
 func compareArtifacts(ctx context.Context, deps Dependencies, artifacts []udaArtifact, flagStepAliases []string, concurrency int) []udaStatusResult {
 	// Probe Automate availability once up front: on an environment without
@@ -294,7 +309,7 @@ func compareAutomateArtifact(ctx context.Context, deps Dependencies, artifact ud
 		return result
 	}
 	fetchPath := map[string]string{
-		"umbraco-automate-automation": "/automations/%s",
+		"umbraco-automate-automation": "/automations/%s/export",
 		"umbraco-automate-workspace":  "/workspaces/%s",
 		"umbraco-automate-connection": "/connections/%s",
 	}[artifact.Kind]
@@ -315,6 +330,30 @@ func compareAutomateArtifact(ctx context.Context, deps Dependencies, artifact ud
 		return result
 	}
 	remoteObject, _ := remote.(map[string]any)
+
+	if artifact.Kind == "umbraco-automate-automation" {
+		// The export representation carries the full behavioral definition
+		// (trigger, steps, connections), so this is a real comparison.
+		automation, _ := remoteObject["automation"].(map[string]any)
+		if automation == nil {
+			result.Status = "unknown"
+			result.Reason = "export endpoint returned no automation body"
+			return result
+		}
+		diffs := compareAutomationExport(artifact.Body, automation)
+		if len(diffs) > 0 {
+			sort.Strings(diffs)
+			result.Status = "drifted"
+			result.Diffs = diffs
+			return result
+		}
+		result.Status = "in-sync"
+		return result
+	}
+
+	// Workspaces and connections expose no export representation, so only
+	// identity fields are comparable: an identity mismatch is real drift,
+	// but an identity match must not claim the full definition is in sync.
 	diffs := diffFields(nil,
 		fieldDiff("name", artifact.Body["Name"], remoteObject["name"]),
 		fieldDiff("alias", artifact.Body["Alias"], remoteObject["alias"]),
@@ -324,8 +363,117 @@ func compareAutomateArtifact(ctx context.Context, deps Dependencies, artifact ud
 		result.Diffs = diffs
 		return result
 	}
-	result.Status = "in-sync"
+	result.Status = "unknown"
+	result.Reason = "identity fields match; the API exposes no full definition to compare for this kind"
 	return result
+}
+
+// compareAutomationExport compares an automation artifact against the
+// export representation's behavioral fields. Canvas state and step
+// positions are layout, not behavior, and are ignored.
+func compareAutomationExport(body map[string]any, automation map[string]any) []string {
+	diffs := diffFields(nil,
+		fieldDiff("name", body["Name"], automation["name"]),
+		fieldDiff("alias", body["Alias"], automation["alias"]),
+	)
+	if description, ok := body["Description"].(string); ok {
+		if normalizeNullableString(description) != normalizeNullableString(udaStringField(automation, "description")) {
+			diffs = append(diffs, "description")
+		}
+	}
+	if trigger, ok := body["Trigger"].(map[string]any); ok {
+		remoteTrigger, _ := automation["trigger"].(map[string]any)
+		if remoteTrigger == nil {
+			diffs = append(diffs, "trigger")
+		} else {
+			if alias, ok := trigger["TriggerAlias"].(string); ok && alias != udaStringField(remoteTrigger, "triggerAlias") {
+				diffs = append(diffs, "trigger.alias")
+			}
+			if settings, ok := trigger["Settings"]; ok && !jsonValueEqual(settings, remoteTrigger["settings"]) {
+				diffs = append(diffs, "trigger.settings")
+			}
+		}
+	}
+
+	artifactSteps := stepIndex(body["Steps"], "Id")
+	remoteSteps := stepIndex(automation["steps"], "id")
+	for id, artifactStep := range artifactSteps {
+		remoteStep, exists := remoteSteps[id]
+		if !exists {
+			diffs = append(diffs, "step "+id+" (missing remotely)")
+			continue
+		}
+		for artifactKey, remoteKey := range map[string]string{"ActionAlias": "actionAlias", "Alias": "alias", "Name": "name"} {
+			if value, ok := artifactStep[artifactKey].(string); ok && value != udaStringField(remoteStep, remoteKey) {
+				diffs = append(diffs, "step "+id+"."+remoteKey)
+			}
+		}
+		for artifactKey, remoteKey := range map[string]string{"Settings": "settings", "InputMappings": "inputMappings"} {
+			if value, ok := artifactStep[artifactKey]; ok && !jsonValueEqual(value, remoteStep[remoteKey]) {
+				diffs = append(diffs, "step "+id+"."+remoteKey)
+			}
+		}
+	}
+	for id := range remoteSteps {
+		if _, exists := artifactSteps[id]; !exists {
+			diffs = append(diffs, "step "+id+" (missing in artifact)")
+		}
+	}
+
+	if connections, ok := body["Connections"].([]any); ok {
+		if !connectionSetsEqual(connections, automation["connections"]) {
+			diffs = append(diffs, "connections")
+		}
+	}
+	return diffs
+}
+
+func stepIndex(value any, idKey string) map[string]map[string]any {
+	index := map[string]map[string]any{}
+	items, _ := value.([]any)
+	for _, item := range items {
+		step, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if id, _ := step[idKey].(string); id != "" {
+			index[id] = step
+		}
+	}
+	return index
+}
+
+// connectionSetsEqual compares step-graph edges as unordered
+// (source, target, outcome) tuples.
+func connectionSetsEqual(artifact []any, remote any) bool {
+	tuple := func(entry map[string]any, source, target, outcome string) string {
+		outcomeValue, _ := entry[outcome].(string)
+		sourceValue, _ := entry[source].(string)
+		targetValue, _ := entry[target].(string)
+		return sourceValue + "→" + targetValue + "|" + outcomeValue
+	}
+	local := map[string]int{}
+	for _, item := range artifact {
+		if entry, ok := item.(map[string]any); ok {
+			local[tuple(entry, "SourceStepId", "TargetStepId", "Outcome")]++
+		}
+	}
+	remoteItems, _ := remote.([]any)
+	remoteSet := map[string]int{}
+	for _, item := range remoteItems {
+		if entry, ok := item.(map[string]any); ok {
+			remoteSet[tuple(entry, "sourceStepId", "targetStepId", "outcome")]++
+		}
+	}
+	if len(local) != len(remoteSet) {
+		return false
+	}
+	for key, count := range local {
+		if remoteSet[key] != count {
+			return false
+		}
+	}
+	return true
 }
 
 func automationStepAliases(body map[string]any) []string {
@@ -365,10 +513,12 @@ func udaComparer(kind string) (string, func(artifact map[string]any, remote map[
 		return "/data-type/folder/%s", compareNameOnlyArtifact
 	case "media-type-container":
 		return "/media-type/folder/%s", compareNameOnlyArtifact
+	case "member-type-container":
+		return "/member-type/folder/%s", compareNameOnlyArtifact
 	case "member-group":
 		return "/member-group/%s", compareNameOnlyArtifact
 	case "relation-type":
-		return "/relation-type/%s", compareNameOnlyArtifact
+		return "/relation-type/%s", compareRelationTypeArtifact
 	}
 	return "", nil
 }
@@ -419,8 +569,11 @@ func compareTemplateArtifact(artifact map[string]any, remote map[string]any) []s
 	return diffs
 }
 
+// normalizeTemplateContent normalizes line endings only: leading and
+// trailing whitespace in a Razor template can be rendered output, so it is
+// significant and compared verbatim.
 func normalizeTemplateContent(content string) string {
-	return strings.TrimSpace(strings.ReplaceAll(content, "\r\n", "\n"))
+	return strings.ReplaceAll(content, "\r\n", "\n")
 }
 
 func compareContentTypeArtifact(artifact map[string]any, remote map[string]any) []string {
@@ -435,6 +588,38 @@ func compareContentTypeArtifact(artifact map[string]any, remote map[string]any) 
 			if isElement != remoteElement {
 				diffs = append(diffs, "isElement")
 			}
+		}
+		if allowedAtRoot, ok := permissions["AllowedAtRoot"].(bool); ok {
+			remoteRoot, _ := remote["allowedAsRoot"].(bool)
+			if allowedAtRoot != remoteRoot {
+				diffs = append(diffs, "allowedAsRoot")
+			}
+		}
+		if allowedChildren, ok := permissions["AllowedChildContentTypes"].([]any); ok {
+			remoteChildren := referencedGUIDSet(remote["allowedDocumentTypes"], "documentType")
+			if remoteChildren == nil {
+				remoteChildren = referencedGUIDSet(remote["allowedMediaTypes"], "mediaType")
+			}
+			if remoteChildren != nil && !udiSetMatches(allowedChildren, remoteChildren) {
+				diffs = append(diffs, "allowedChildContentTypes")
+			}
+		}
+	}
+	if description, ok := artifact["Description"].(string); ok {
+		if normalizeNullableString(description) != normalizeNullableString(udaStringField(remote, "description")) {
+			diffs = append(diffs, "description")
+		}
+	}
+	if compositions, ok := artifact["CompositionContentTypes"].([]any); ok {
+		remoteCompositions := referencedGUIDSet(remote["compositions"], "documentType")
+		if remoteCompositions == nil {
+			remoteCompositions = referencedGUIDSet(remote["compositions"], "mediaType")
+		}
+		if remoteCompositions == nil {
+			remoteCompositions = referencedGUIDSet(remote["compositions"], "memberType")
+		}
+		if remoteCompositions != nil && !udiSetMatches(compositions, remoteCompositions) {
+			diffs = append(diffs, "compositions")
 		}
 	}
 
@@ -472,6 +657,25 @@ func compareContentTypeArtifact(artifact map[string]any, remote map[string]any) 
 		if sortOrder, ok := artifactProperty["SortOrder"].(float64); ok {
 			if remoteSort, ok := remoteProperty["sortOrder"].(float64); ok && sortOrder != remoteSort {
 				diffs = append(diffs, "property "+alias+".sortOrder")
+			}
+		}
+		if description, ok := artifactProperty["Description"].(string); ok {
+			if normalizeNullableString(description) != normalizeNullableString(udaStringField(remoteProperty, "description")) {
+				diffs = append(diffs, "property "+alias+".description")
+			}
+		}
+		if mandatory, ok := artifactProperty["Mandatory"].(bool); ok {
+			remoteMandatory := false
+			if validation, ok := remoteProperty["validation"].(map[string]any); ok {
+				remoteMandatory, _ = validation["mandatory"].(bool)
+			}
+			if mandatory != remoteMandatory {
+				diffs = append(diffs, "property "+alias+".mandatory")
+			}
+		}
+		if varies, ok := artifactProperty["VariesByCulture"].(bool); ok {
+			if remoteVaries, isBool := remoteProperty["variesByCulture"].(bool); isBool && varies != remoteVaries {
+				diffs = append(diffs, "property "+alias+".variesByCulture")
 			}
 		}
 	}
@@ -543,4 +747,96 @@ func diffFields(diffs []string, candidates ...string) []string {
 
 func jsonValueEqual(a any, b any) bool {
 	return reflect.DeepEqual(a, b)
+}
+
+// compareRelationTypeArtifact compares the behavioral relation-type fields
+// the artifact carries: directionality, dependency behavior, and the
+// parent/child object types — a shared name alone says nothing.
+func compareRelationTypeArtifact(artifact map[string]any, remote map[string]any) []string {
+	diffs := diffFields(nil,
+		fieldDiff("name", artifact["Name"], remote["name"]),
+		fieldDiff("alias", artifact["Alias"], remote["alias"]),
+	)
+	if bidirectional, ok := artifact["IsBidirectional"].(bool); ok {
+		if remoteValue, isBool := remote["isBidirectional"].(bool); isBool && bidirectional != remoteValue {
+			diffs = append(diffs, "isBidirectional")
+		}
+	}
+	if dependency, ok := artifact["IsDependency"].(bool); ok {
+		if remoteValue, isBool := remote["isDependency"].(bool); isBool && dependency != remoteValue {
+			diffs = append(diffs, "isDependency")
+		}
+	}
+	for artifactKey, remoteKey := range map[string]string{"ParentObjectType": "parentObjectType", "ChildObjectType": "childObjectType"} {
+		if value, ok := artifact[artifactKey].(string); ok && value != "" {
+			if !guidLikeEqual(value, udaStringField(remote, remoteKey)) {
+				diffs = append(diffs, remoteKey)
+			}
+		}
+	}
+	return diffs
+}
+
+// referencedGUIDSet extracts the lowercase GUID set from response arrays
+// shaped [{"<refKey>": {"id": ...}, ...}]; nil when the field is absent or
+// not that shape, so callers skip rather than false-drift.
+func referencedGUIDSet(value any, refKey string) map[string]struct{} {
+	items, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	set := map[string]struct{}{}
+	for _, item := range items {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			return nil
+		}
+		reference, ok := entry[refKey].(map[string]any)
+		if !ok {
+			return nil
+		}
+		if id, _ := reference["id"].(string); id != "" {
+			set[strings.ToLower(id)] = struct{}{}
+		}
+	}
+	return set
+}
+
+// udiSetMatches compares an artifact's udi list against a remote GUID set.
+func udiSetMatches(udis []any, remote map[string]struct{}) bool {
+	local := map[string]struct{}{}
+	for _, item := range udis {
+		udi, ok := item.(string)
+		if !ok {
+			return false
+		}
+		if _, guid := parseUdi(udi); guid != "" {
+			local[strings.ToLower(guid)] = struct{}{}
+		}
+	}
+	if len(local) != len(remote) {
+		return false
+	}
+	for guid := range local {
+		if _, ok := remote[guid]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// guidLikeEqual compares two identifiers that may each be a bare GUID or a
+// udi, case-insensitively.
+func guidLikeEqual(a string, b string) bool {
+	normalize := func(value string) string {
+		if _, guid := parseUdi(value); guid != "" {
+			return strings.ToLower(guid)
+		}
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+	return normalize(a) == normalize(b)
+}
+
+func normalizeNullableString(value string) string {
+	return strings.TrimSpace(value)
 }

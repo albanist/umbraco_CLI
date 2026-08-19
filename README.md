@@ -102,6 +102,7 @@ Scripts and CI gates can rely on the exit code to tell failure classes apart:
 | 4 | The Management API answered with an error status (4xx/5xx) |
 | 5 | `deploy watch` reached its failed phase (sustained downtime or post-landing health failure beyond `--escalation`) |
 | 6 | `deploy watch` reached `--timeout` without verification — deployment status unknown, never inferred |
+| 7 | `deploy status` ran cleanly and found drifted or missing entities (suppress with `--exit-zero`) |
 
 JSON output is the stable machine contract — only additive changes. Table
 output is unstable and may reorder columns between releases.

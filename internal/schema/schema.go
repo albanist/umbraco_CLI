@@ -170,7 +170,7 @@ var deployStatusSchema = &rawSchema{
 	},
 	Response: &ObjectSchema{
 		Type:        "object",
-		Description: "CLI workflow, read-only: parses Deploy .uda artifacts (BOM-tolerant, Udi-discriminated) and compares each against the environment, reporting in-sync | drifted (with fields) | missing-remote | unknown | error per artifact plus a summary; exit 2 on drift/missing. Automate artifacts degrade to unknown where that API is unavailable, never false in-sync.",
+		Description: "CLI workflow, read-only: parses Deploy .uda artifacts (BOM-tolerant, Udi-discriminated) and compares each against the environment, reporting in-sync | drifted (with fields) | missing-remote | unknown | error per artifact plus a summary; exit 7 on drift/missing. Automate artifacts degrade to unknown where that API is unavailable, never false in-sync.",
 	},
 }
 

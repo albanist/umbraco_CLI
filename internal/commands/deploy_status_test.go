@@ -117,6 +117,8 @@ func deployStatusDeps(t *testing.T, remoteDataType string, remoteDoctype string,
 		switch {
 		case req.URL.Path == "/umbraco/management/api/v1/security/back-office/token":
 			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case req.URL.Path == "/umbraco/management/api/v1/server/status":
+			return endpointJSONResponse(http.StatusOK, `{"serverStatus":"Run"}`), nil
 		case req.URL.Path == "/umbraco/management/api/v1/data-type/aaaaaaaa-1111-2222-3333-444444444444":
 			return endpointJSONResponse(http.StatusOK, remoteDataType), nil
 		case req.URL.Path == "/umbraco/management/api/v1/document-type/bbbbbbbb-1111-2222-3333-444444444444":
@@ -127,6 +129,9 @@ func deployStatusDeps(t *testing.T, remoteDataType string, remoteDoctype string,
 			}
 			if strings.HasSuffix(req.URL.Path, "/automations") {
 				return endpointJSONResponse(http.StatusOK, `{"items":[],"total":0}`), nil
+			}
+			if strings.HasSuffix(req.URL.Path, "/export") {
+				return endpointJSONResponse(http.StatusOK, `{"automation":{"name":"Example Automation","alias":"exampleAutomation","trigger":{"triggerAlias":"example.trigger","settings":{}},"steps":[{"id":"s1","actionAlias":"umbracoAutomate.forEach","name":"Loop","alias":"loop","settings":{},"inputMappings":{}},{"id":"s2","actionAlias":"example.sendMail","name":"Send","alias":"send","settings":{},"inputMappings":{}}],"connections":[{"sourceStepId":"s1","targetStepId":"s2"}]}}`), nil
 			}
 			return endpointJSONResponse(http.StatusOK, `{"name":"Example Automation","alias":"exampleAutomation"}`), nil
 		default:
@@ -214,8 +219,8 @@ func TestDeployStatusMissingRemoteAndExitCode(t *testing.T) {
 
 	_, err := execute(buildDeployRoot(deps), "deploy", "status", "--uda-dir", dir)
 	var drift deployDriftFoundError
-	if err == nil || !strings.Contains(err.Error(), "missing") || drift.ExitCode() != 2 {
-		t.Fatalf("expected exit-2 drift error without --exit-zero, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "missing") || drift.ExitCode() != 7 {
+		t.Fatalf("expected exit-7 drift error without --exit-zero, got %v", err)
 	}
 }
 
@@ -260,5 +265,113 @@ func TestDeployStatusParseFailureIsReportedNotDropped(t *testing.T) {
 	byFile := statusByFile(t, payload)
 	if byFile["data-type__broken.uda"]["status"] != "error" {
 		t.Fatalf("expected parse error surfaced, got %+v", byFile["data-type__broken.uda"])
+	}
+}
+
+func TestDeployStatusAutomationExportDriftAndBehavioralFields(t *testing.T) {
+	dir := t.TempDir()
+	drifted := strings.Replace(statusAutomationUda, `"ActionAlias": "example.sendMail"`, `"ActionAlias": "example.sendSms"`, 1)
+	writeUda(t, dir, "umbraco-automate-automation__d.uda", drifted)
+
+	payload := runDeployStatus(t, deployStatusDeps(t, statusRemoteDataType, statusRemoteDoctype, true), dir)
+	byFile := statusByFile(t, payload)
+	automation := byFile["umbraco-automate-automation__d.uda"]
+	if automation["status"] != "drifted" || !strings.Contains(jsonString(automation["diffs"]), "step s2.actionAlias") {
+		t.Fatalf("expected behavioral step drift via export comparison, got %+v", automation)
+	}
+}
+
+func TestDeployStatusWorkspaceIdentityMatchIsUnknownNotInSync(t *testing.T) {
+	dir := t.TempDir()
+	workspace := `{"Name":"Example Workspace","Alias":"exampleWorkspace","Udi":"umb://umbraco-automate-workspace/cccccccc111122223333444444444444","Dependencies":[],"__type":"Umbraco.Deploy.Automate,X","__version":"18.0.1"}`
+	writeUda(t, dir, "umbraco-automate-workspace__c.uda", workspace)
+
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case req.URL.Path == "/umbraco/management/api/v1/server/status":
+			return endpointJSONResponse(http.StatusOK, `{"serverStatus":"Run"}`), nil
+		case strings.HasSuffix(req.URL.Path, "/automations"):
+			return endpointJSONResponse(http.StatusOK, `{"items":[],"total":0}`), nil
+		default:
+			return endpointJSONResponse(http.StatusOK, `{"name":"Example Workspace","alias":"exampleWorkspace"}`), nil
+		}
+	})
+	payload := runDeployStatus(t, deps, dir)
+	byFile := statusByFile(t, payload)
+	workspaceResult := byFile["umbraco-automate-workspace__c.uda"]
+	if workspaceResult["status"] != "unknown" || !strings.Contains(workspaceResult["reason"].(string), "identity fields match") {
+		t.Fatalf("expected identity-only match to stay unknown, got %+v", workspaceResult)
+	}
+}
+
+func TestDeployStatusUnreachableEnvironmentPreservesExitCode(t *testing.T) {
+	dir := t.TempDir()
+	writeUda(t, dir, "data-type__a.uda", statusDataTypeUda)
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path == "/umbraco/management/api/v1/security/back-office/token" {
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		}
+		return endpointJSONResponse(http.StatusInternalServerError, `{"error":"down"}`), nil
+	})
+	_, err := execute(buildDeployRoot(deps), "deploy", "status", "--uda-dir", dir)
+	if err == nil || !strings.Contains(err.Error(), "cannot reach the target environment") {
+		t.Fatalf("expected pre-flight failure, got %v", err)
+	}
+}
+
+func TestDeployStatusRejectsMalformedUdiBeforeRequesting(t *testing.T) {
+	dir := t.TempDir()
+	bad := strings.Replace(statusDataTypeUda, "aaaaaaaa111122223333444444444444", "not-32-hex", 1)
+	writeUda(t, dir, "data-type__bad.uda", bad)
+	payload := runDeployStatus(t, deployStatusDeps(t, statusRemoteDataType, statusRemoteDoctype, false), dir)
+	byFile := statusByFile(t, payload)
+	if byFile["data-type__bad.uda"]["status"] != "error" {
+		t.Fatalf("expected malformed udi to be an error, got %+v", byFile["data-type__bad.uda"])
+	}
+}
+
+func TestDeployStatusTemplateWhitespaceIsSignificant(t *testing.T) {
+	dir := t.TempDir()
+	template := `{"Name":"Example Template","Alias":"exampleTemplate","Content":"@inherits X\r\n<p>hi</p>\r\n","Udi":"umb://template/eeeeeeee111122223333444444444444","Dependencies":[],"__type":"Umbraco.Deploy.Infrastructure,X","__version":"18.0.1"}`
+	writeUda(t, dir, "template__e.uda", template)
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case req.URL.Path == "/umbraco/management/api/v1/server/status":
+			return endpointJSONResponse(http.StatusOK, `{"serverStatus":"Run"}`), nil
+		default:
+			// Same content, LF endings, but an extra trailing newline: line
+			// endings normalize away, trailing whitespace must not.
+			return endpointJSONResponse(http.StatusOK, `{"name":"Example Template","alias":"exampleTemplate","content":"@inherits X\n<p>hi</p>\n\n"}`), nil
+		}
+	})
+	payload := runDeployStatus(t, deps, dir)
+	byFile := statusByFile(t, payload)
+	if byFile["template__e.uda"]["status"] != "drifted" || !strings.Contains(jsonString(byFile["template__e.uda"]["diffs"]), "content") {
+		t.Fatalf("expected trailing-whitespace drift, got %+v", byFile["template__e.uda"])
+	}
+}
+
+func TestDeployStatusRelationTypeBehavioralDrift(t *testing.T) {
+	dir := t.TempDir()
+	relation := `{"Name":"Related Media","Alias":"relatedMedia","IsBidirectional":true,"IsDependency":false,"Udi":"umb://relation-type/ffffffff111122223333444444444444","Dependencies":[],"__type":"Umbraco.Deploy.Infrastructure,X","__version":"18.0.1"}`
+	writeUda(t, dir, "relation-type__f.uda", relation)
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case req.URL.Path == "/umbraco/management/api/v1/server/status":
+			return endpointJSONResponse(http.StatusOK, `{"serverStatus":"Run"}`), nil
+		default:
+			return endpointJSONResponse(http.StatusOK, `{"name":"Related Media","alias":"relatedMedia","isBidirectional":false,"isDependency":false}`), nil
+		}
+	})
+	payload := runDeployStatus(t, deps, dir)
+	byFile := statusByFile(t, payload)
+	if byFile["relation-type__f.uda"]["status"] != "drifted" || !strings.Contains(jsonString(byFile["relation-type__f.uda"]["diffs"]), "isBidirectional") {
+		t.Fatalf("expected directionality drift, got %+v", byFile["relation-type__f.uda"])
 	}
 }
