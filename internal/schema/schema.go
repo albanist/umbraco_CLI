@@ -158,6 +158,22 @@ func sortChildrenSchema(resource string, withCulture bool) *rawSchema {
 	}
 }
 
+var deployStatusSchema = &rawSchema{
+	Method: "GET",
+	Path:   "local: <uda-dir>/*.uda + per-kind Management API lookups (/data-type/{id}, /document-type/{id}, /template/{id}, ...)",
+	QueryParams: map[string]ParamSchema{
+		"uda-dir":         {Type: "string", Description: "Directory holding the .uda artifacts (default umbraco/Deploy/Revision)"},
+		"kind":            {Type: "array", Description: "Only compare these artifact kinds (Udi entity types); repeatable"},
+		"flag-step-alias": {Type: "array", Description: "Flag automations whose steps carry this action-alias substring; repeatable"},
+		"exit-zero":       {Type: "boolean", Description: "Exit 0 even when drift or missing entities are found"},
+		"concurrency":     {Type: "number", Format: "int32", Description: "Maximum concurrent environment lookups (default 8)"},
+	},
+	Response: &ObjectSchema{
+		Type:        "object",
+		Description: "CLI workflow, read-only: parses Deploy .uda artifacts (BOM-tolerant, Udi-discriminated) and compares each against the environment, reporting in-sync | drifted (with fields) | missing-remote | unknown | error per artifact plus a summary; exit 2 on drift/missing. Automate artifacts degrade to unknown where that API is unavailable, never false in-sync.",
+	},
+}
+
 var deployWatchSchema = &rawSchema{
 	Method: "GET",
 	Path:   "poll: /security/back-office/token (unauthenticated probe) + /log-viewer/log + /indexer + <public-url>/<health-path>",
@@ -212,7 +228,8 @@ var endpointBindings = map[string]endpointBinding{
 	"element.version.prevent-cleanup": {Method: "PUT", Path: "/element-version/{id}/prevent-cleanup"},
 
 	// deploy (effect-based observation composites)
-	"deploy.watch": {Manual: deployWatchSchema},
+	"deploy.watch":  {Manual: deployWatchSchema},
+	"deploy.status": {Manual: deployStatusSchema},
 
 	// document
 	"document.get":                        {Method: "GET", Path: "/document/{id}", ExtraQuery: documentGetQuery},

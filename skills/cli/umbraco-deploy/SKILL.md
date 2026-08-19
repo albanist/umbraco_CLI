@@ -22,7 +22,28 @@ umbraco deploy <command> [flags]
 
 | Command | Description |
 |---------|-------------|
+| `deploy status` | Compare local .uda deploy artifacts against the environment, read-only |
 | `deploy watch` | Watch an environment for the effects of a deployment and report phase transitions |
+
+### status
+
+```bash
+umbraco deploy status
+```
+
+Reads the Umbraco Deploy artifacts in --uda-dir (the site repo's umbraco/Deploy/Revision) and compares each against the target environment's database via the Management API, reporting in-sync vs drifted per entity. Strictly read-only: a pre-flight check that turns "will this deploy blow up or carry surprises?" into an answerable question — in-sync artifacts are skipped by Deploy's schema pass and are therefore safe; drifted ones are processed.
+
+Comparison is per entity kind (data types, document/media/member types, templates, containers, member groups, relation types) over the fields the artifact carries; environment-only additions like migration markers are ignored. Automate artifacts degrade to status "unknown" where the Automate API is unreachable (Cloud basic auth blocks package APIs on non-live environments) — never a false in-sync — but their step aliases are still read locally, and --flag-step-alias marks automations carrying aliases you know your Deploy version cannot validate (configuration, not encoded knowledge: those landmines change as bugs are fixed).
+
+Exit 2 when drift or missing entities are found (suppress with --exit-zero); parse failures and unreachable comparisons are reported per artifact, never silently dropped.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--concurrency` | int | 8 | Maximum concurrent environment lookups |
+| `--exit-zero` | bool | false | Exit 0 even when drift or missing entities are found |
+| `--flag-step-alias` | stringArray | [] | Flag automations whose steps carry this action-alias substring (repeatable; e.g. a control-flow alias your Deploy version fails to validate) |
+| `--kind` | stringArray | [] | Only compare these artifact kinds (Udi entity types, e.g. data-type, document-type; repeatable) |
+| `--uda-dir` | string | umbraco/Deploy/Revision | Directory holding the .uda artifacts |
 
 ### watch
 
