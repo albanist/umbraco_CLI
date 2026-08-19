@@ -12,7 +12,7 @@ var ExpectedCollectionCommandCounts = map[string]int{
 	"models-builder":  3,
 	"member":          8,
 	"member-group":    2,
-	"logs":            6,
+	"logs":            7,
 	"server":          5,
 	"health":          4,
 	"published-cache": 3,
