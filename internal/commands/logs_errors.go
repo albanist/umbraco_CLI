@@ -35,24 +35,33 @@ func logsErrors(deps Dependencies) *cobra.Command {
 		Long:  "GET /log-viewer/log filtered to Error and Fatal levels. --distinct groups entries into error classes by fingerprint (message template + normalized exception head, so two SQL violations with different constraint names are different classes) and reports count, first/last seen, and an example per class, sorted newest-first-seen so new breakage tops the list. --suppress drops known-chronic classes by fingerprint; --suppress-contains drops classes whose template or exception matches a substring. Suppressed classes are counted in the summary so they never vanish silently.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			startDate := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339)
+			if maxEntries <= 0 {
+				return fmt.Errorf("--max-entries must be greater than zero")
+			}
+			start := time.Now().UTC().Add(-24 * time.Hour)
 			if strings.TrimSpace(since) != "" {
 				parsed, err := parseLogTime(since)
 				if err != nil {
 					return fmt.Errorf("invalid --since: %w", err)
 				}
-				startDate = parsed.Format(time.RFC3339Nano)
+				start = parsed
 			}
-			params := map[string]any{
-				"logLevel":  []any{"Error", "Fatal"},
-				"startDate": startDate,
-			}
+			// The end of the window is always pinned before pagination: this
+			// endpoint returns newest-first and pages by skip offset, so
+			// errors arriving between page requests would shift the
+			// collection and produce duplicates and gaps against an open end.
+			end := time.Now().UTC()
 			if strings.TrimSpace(until) != "" {
 				parsed, err := parseLogTime(until)
 				if err != nil {
 					return fmt.Errorf("invalid --until: %w", err)
 				}
-				params["endDate"] = parsed.Format(time.RFC3339Nano)
+				end = parsed
+			}
+			params := map[string]any{
+				"logLevel":  []any{"Error", "Fatal"},
+				"startDate": start.Format(time.RFC3339Nano),
+				"endDate":   end.Format(time.RFC3339Nano),
 			}
 
 			result, err := getAllPagesWithFallback(
@@ -70,15 +79,18 @@ func logsErrors(deps Dependencies) *cobra.Command {
 				return printResult(cmd, deps, result)
 			}
 			items, _ := envelope["items"].([]any)
-			if maxEntries > 0 && len(items) >= maxEntries {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: hit --max-entries cap of %d; older entries in the window were not scanned\n", maxEntries)
+			// The window is enforced client-side as well, matching logs
+			// list/search: the legacy route ignores the date parameters.
+			items = filterEntriesToWindow(items, start, end)
+			if serverTotal, ok := envelope["total"].(float64); ok && int(serverTotal) > len(items) && len(items) >= maxEntries {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: hit --max-entries cap of %d with %d entries in the window; older entries were not scanned\n", maxEntries, int(serverTotal))
 			}
 
 			if !distinct {
 				if len(suppress) > 0 || len(suppressContains) > 0 {
 					return fmt.Errorf("--suppress and --suppress-contains require --distinct")
 				}
-				return printResult(cmd, deps, envelope)
+				return printResult(cmd, deps, map[string]any{"items": items, "total": len(items)})
 			}
 
 			groups, suppressed := groupErrorClasses(items, suppress, suppressContains)
@@ -86,7 +98,8 @@ func logsErrors(deps Dependencies) *cobra.Command {
 				"classes":          groups,
 				"totalEntries":     len(items),
 				"suppressedGroups": suppressed,
-				"since":            startDate,
+				"since":            start.Format(time.RFC3339),
+				"until":            end.Format(time.RFC3339),
 			})
 		},
 	}
@@ -98,6 +111,34 @@ func logsErrors(deps Dependencies) *cobra.Command {
 	cmd.Flags().StringArrayVar(&suppressContains, "suppress-contains", nil, "Drop classes whose template or exception contains this substring (repeatable)")
 	cmd.Flags().IntVar(&maxEntries, "max-entries", 10000, "Maximum entries to scan in the window")
 	return cmd
+}
+
+// filterEntriesToWindow drops entries outside [start, end]. The modern
+// route honours startDate/endDate server-side, but the legacy fallback
+// route ignores them, so the window is enforced here as well — matching
+// what logs list/search do via shapeLogResult.
+func filterEntriesToWindow(items []any, start time.Time, end time.Time) []any {
+	filtered := make([]any, 0, len(items))
+	for _, item := range items {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		raw, _ := entry["timestamp"].(string)
+		timestamp, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			// An unparsable timestamp is kept: dropping it could hide an
+			// error, and the window exists to exclude entries known to be
+			// outside it, not to require perfect data.
+			filtered = append(filtered, item)
+			continue
+		}
+		if timestamp.Before(start) || timestamp.After(end) {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	return filtered
 }
 
 // errorClass is one fingerprinted group of Error/Fatal entries.
@@ -130,6 +171,12 @@ func groupErrorClasses(items []any, suppress []string, suppressContains []string
 		template, _ := entry["messageTemplate"].(string)
 		exception, _ := entry["exception"].(string)
 		head := normalizeExceptionHead(exception)
+		if template == "" && head == "" {
+			// Both fingerprint fields are nullable on the API; without this
+			// fallback every such entry would collapse into one class.
+			rendered, _ := entry["renderedMessage"].(string)
+			template = normalizeExceptionHead(rendered)
+		}
 		fingerprint := errorFingerprint(template, head)
 
 		class, exists := byFingerprint[fingerprint]
