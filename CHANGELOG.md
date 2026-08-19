@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- added `logs errors` for post-incident/post-deploy triage: Error+Fatal entries in a window (`--since`/`--until`, default last 24h), and `--distinct` groups them into fingerprinted error classes (message template + normalized exception head, so two SQL violations with different constraint names are different classes) with count, first/last seen, levels, source contexts, and an example — sorted newest-first-seen so new breakage tops the list; known-chronic classes drop via `--suppress <fingerprint>` / `--suppress-contains <substring>` (per-site configuration, never encoded) and suppressed groups stay counted in the summary
+
 - added `doctype reorder-properties <id>` closing an agent-reported gap: the Management API has no property-reorder operation (order is the per-container `sortOrder` field, changed only via a full document-type PUT), so reordering previously meant hand-rolling a read-modify-write through `--merge-json`. Two modes: `--aliases a,b,c` assigns positions with the container's remaining properties following in their current order, and `--alias x --sort-order n` moves one property; both verified live on 18.1
 
 ## v0.4.9 - 2026-08-12

@@ -292,6 +292,7 @@ var endpointBindings = map[string]endpointBinding{
 	"logs.level-count": {Method: "GET", Path: "/log-viewer/level-count"},
 	"logs.templates":   {Method: "GET", Path: "/log-viewer/message-template"},
 	"logs.search":      {Method: "GET", Path: "/log-viewer/log"},
+	"logs.errors":      {Method: "GET", Path: "/log-viewer/log", ExtraQuery: map[string]ParamSchema{"since": {Type: "string", Description: "Start of the window (ISO/RFC3339); default 24h ago"}, "until": {Type: "string", Description: "End of the window; default now"}, "distinct": {Type: "boolean", Description: "Group Error/Fatal entries into fingerprinted error classes"}, "suppress": {Type: "array", Description: "Known-chronic class fingerprints to drop; repeatable"}, "suppress-contains": {Type: "array", Description: "Drop classes whose template/exception contains this substring; repeatable"}, "max-entries": {Type: "number", Format: "int32", Description: "Maximum entries scanned in the window (default 10000)"}}, Response: &ObjectSchema{Type: "object", Description: "Error+Fatal entries; --distinct returns {classes, totalEntries, suppressedGroups, since} with classes sorted newest-first-seen"}},
 
 	// server
 	"server.status":        {Method: "GET", Path: "/server/status"},

@@ -22,11 +22,29 @@ umbraco logs <command> [flags]
 
 | Command | Description |
 |---------|-------------|
+| `logs errors` | List Error/Fatal log entries, optionally grouped into distinct error classes |
 | `logs level-count` | Get count per level |
 | `logs list` | List log entries |
 | `logs search` | Search logs |
 | `logs tail` | Follow new log entries as they arrive (client-side polling) |
 | `logs templates` | List paginated log message templates |
+
+### errors
+
+```bash
+umbraco logs errors
+```
+
+GET /log-viewer/log filtered to Error and Fatal levels. --distinct groups entries into error classes by fingerprint (message template + normalized exception head, so two SQL violations with different constraint names are different classes) and reports count, first/last seen, and an example per class, sorted newest-first-seen so new breakage tops the list. --suppress drops known-chronic classes by fingerprint; --suppress-contains drops classes whose template or exception matches a substring. Suppressed classes are counted in the summary so they never vanish silently.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--distinct` | bool | false | Group entries into fingerprinted error classes |
+| `--max-entries` | int | 10000 | Maximum entries to scan in the window |
+| `--since` | string | — | Start of the window (ISO/RFC3339); default: 24 hours ago |
+| `--suppress` | stringArray | [] | Fingerprint of a known-chronic error class to drop (repeatable) |
+| `--suppress-contains` | stringArray | [] | Drop classes whose template or exception contains this substring (repeatable) |
+| `--until` | string | — | End of the window (ISO/RFC3339); default: now |
 
 ### level-count
 
