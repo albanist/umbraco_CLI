@@ -158,6 +158,25 @@ func sortChildrenSchema(resource string, withCulture bool) *rawSchema {
 	}
 }
 
+var deployWatchSchema = &rawSchema{
+	Method: "GET",
+	Path:   "poll: /security/back-office/token (unauthenticated probe) + /log-viewer/log + /indexer + <public-url>/<health-path>",
+	QueryParams: map[string]ParamSchema{
+		"health-path":       {Type: "array", Description: "Public paths that must return 2xx for serving/verified; repeatable, default /"},
+		"public-url":        {Type: "string", Description: "Public host for health paths when it differs from the management base URL"},
+		"interval":          {Type: "string", Description: "Poll interval (Go duration, default 5s)"},
+		"timeout":           {Type: "string", Description: "Give up after this long without verification (default 30m; exit 6, status unknown)"},
+		"escalation":        {Type: "string", Description: "Sustained downtime or post-landing health failure beyond this fails the watch (default 10m; exit 5)"},
+		"heartbeat":         {Type: "string", Description: "Still-alive line interval on stderr; 0 disables (default 1m)"},
+		"json":              {Type: "boolean", Description: "Emit phase transitions as NDJSON"},
+		"skip-index-verify": {Type: "boolean", Description: "Do not require Examine indexes healthy for verified"},
+	},
+	Response: &ObjectSchema{
+		Type:        "object",
+		Description: "CLI workflow: baselines ProcessId/MachineName, health paths, and index health, then polls for state deltas only a deployment can cause, emitting phase transitions baseline → restarting → app-alive → serving → landed → verified | failed | timeout. Read-only; no pipeline or portal API involved.",
+	},
+}
+
 var endpointBindings = map[string]endpointBinding{
 	// schema
 	"schema.diff": {Manual: schemaDiffSchema},
@@ -191,6 +210,9 @@ var endpointBindings = map[string]endpointBinding{
 	"element.version.get":             {Method: "GET", Path: "/element-version/{id}"},
 	"element.version.rollback":        {Method: "POST", Path: "/element-version/{id}/rollback"},
 	"element.version.prevent-cleanup": {Method: "PUT", Path: "/element-version/{id}/prevent-cleanup"},
+
+	// deploy (effect-based observation composites)
+	"deploy.watch": {Manual: deployWatchSchema},
 
 	// document
 	"document.get":                        {Method: "GET", Path: "/document/{id}", ExtraQuery: documentGetQuery},

@@ -68,6 +68,7 @@ func NewRootCommand() *cobra.Command {
 	commands.RegisterLogs(root, deps)
 	commands.RegisterServer(root, deps)
 	commands.RegisterHealth(root, deps)
+	commands.RegisterDeploy(root, deps)
 	commands.RegisterPublishedCache(root, deps)
 	commands.RegisterRedirect(root, deps)
 	commands.RegisterIndexer(root, deps)
