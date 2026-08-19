@@ -197,8 +197,8 @@ func configuredBaseURL(deps Dependencies) (string, error) {
 			return cfg.BaseURL, nil
 		}
 	}
-	if strings.TrimSpace(deps.Config.BaseURL) != "" {
-		return deps.Config.BaseURL, nil
+	if strings.TrimSpace(deps.currentConfig().BaseURL) != "" {
+		return deps.currentConfig().BaseURL, nil
 	}
 	cfg, err := config.Load()
 	if err != nil {

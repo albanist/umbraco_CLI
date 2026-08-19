@@ -48,6 +48,9 @@ func NewRootCommand() *cobra.Command {
 		ConfigOptionsProvider: func() config.LoadOptions {
 			return config.LoadOptions{Profile: profile, ConfigPath: configPath}
 		},
+		ConfigProvider: func() config.Config {
+			return runtime.Config
+		},
 	}
 
 	commands.RegisterDocument(root, deps)

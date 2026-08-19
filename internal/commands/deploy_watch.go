@@ -53,7 +53,7 @@ Phases: baseline → restarting → app-alive → serving → landed → verifie
 			if interval <= 0 {
 				return fmt.Errorf("--interval must be greater than zero")
 			}
-			base := strings.TrimRight(deps.Config.BaseURL, "/")
+			base := strings.TrimRight(deps.currentConfig().BaseURL, "/")
 			public := base
 			if strings.TrimSpace(publicURL) != "" {
 				public = strings.TrimRight(publicURL, "/")
@@ -91,12 +91,28 @@ Phases: baseline → restarting → app-alive → serving → landed → verifie
 			})
 
 			started := time.Now()
+			deadline := started.Add(timeout)
 			lastHeartbeat := started
+			timeoutErr := func() error {
+				reason := fmt.Sprintf("no verification within %s (last phase: %s) — deployment status unknown", timeout, machine.phase)
+				emit(watchEvent{Timestamp: time.Now().UTC().Format(time.RFC3339), Phase: "timeout", Detail: map[string]any{"reason": reason}})
+				return deployWatchTimeoutError{reason: reason}
+			}
 			for {
+				// The sleep never overshoots the deadline, so --timeout is
+				// honored even when --interval is longer or probes are slow.
+				remaining := time.Until(deadline)
+				if remaining <= 0 {
+					return timeoutErr()
+				}
+				sleep := interval
+				if remaining < sleep {
+					sleep = remaining
+				}
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
-				case <-time.After(interval):
+				case <-time.After(sleep):
 				}
 
 				observation := probes.observe(ctx)
@@ -111,10 +127,8 @@ Phases: baseline → restarting → app-alive → serving → landed → verifie
 					return deployWatchFailedError{reason: machine.failureReason}
 				}
 
-				if time.Since(started) >= timeout {
-					reason := fmt.Sprintf("no verification within %s (last phase: %s) — deployment status unknown", timeout, machine.phase)
-					emit(watchEvent{Timestamp: time.Now().UTC().Format(time.RFC3339), Phase: "timeout", Detail: map[string]any{"reason": reason}})
-					return deployWatchTimeoutError{reason: reason}
+				if time.Now().After(deadline) {
+					return timeoutErr()
 				}
 				if heartbeat > 0 && time.Since(lastHeartbeat) >= heartbeat {
 					fmt.Fprintf(cmd.ErrOrStderr(), "%s still watching — phase %s, elapsed %s\n", time.Now().UTC().Format(time.RFC3339), machine.phase, time.Since(started).Round(time.Second))
@@ -176,6 +190,7 @@ type watchObservation struct {
 	MgmtStatus  int // HTTP status of the unauthenticated token probe; 0 = unreachable
 	ProcessID   string
 	MachineName string
+	LogErr      error           // the typed error from the log probe, surfaced at baseline
 	Health      map[string]bool // per health path; nil when the probe errored entirely
 	BadIndexes  []string        // rebuilding/unhealthy index names; nil = unknown this tick
 }
@@ -215,6 +230,11 @@ func newWatchMachine(baseline watchObservation, escalation time.Duration, skipIn
 		return nil, fmt.Errorf("cannot baseline the target: the management endpoint is not answering (status %d) — refusing to arm, a watch started mid-outage cannot tell a deploy from the outage", baseline.MgmtStatus)
 	}
 	if baseline.ProcessID == "" {
+		// Surface the real probe error (wrapped, so auth failures keep exit
+		// code 3 and API errors keep 4) instead of a generic local failure.
+		if baseline.LogErr != nil {
+			return nil, fmt.Errorf("cannot baseline the target: reading the newest log entry failed: %w", baseline.LogErr)
+		}
 		return nil, fmt.Errorf("cannot baseline the target: no ProcessId readable from the newest log entry — the landing signal would never fire")
 	}
 	healthy := make([]string, 0, len(baseline.Health))
@@ -381,7 +401,7 @@ func (p *watchProbes) observe(ctx context.Context) watchObservation {
 	obs.MgmtAlive, obs.MgmtStatus = p.probeManagement(ctx)
 	obs.Health = p.probeHealth(ctx)
 	if obs.MgmtAlive {
-		obs.ProcessID, obs.MachineName = p.newestProcess(ctx)
+		obs.ProcessID, obs.MachineName, obs.LogErr = p.newestProcess(ctx)
 		if !p.skipIndexes {
 			obs.BadIndexes = p.badIndexes(ctx)
 		}
@@ -405,7 +425,7 @@ func (p *watchProbes) probeManagement(ctx context.Context) (bool, int) {
 	if err != nil {
 		return false, 0
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
 	return response.StatusCode < 500, response.StatusCode
 }
@@ -430,31 +450,31 @@ func (p *watchProbes) probeHealth(ctx context.Context) map[string]bool {
 			continue
 		}
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
-		response.Body.Close()
+		_ = response.Body.Close()
 		cancel()
 		health[path] = response.StatusCode >= 200 && response.StatusCode < 300
 	}
 	return health
 }
 
-func (p *watchProbes) newestProcess(ctx context.Context) (string, string) {
+func (p *watchProbes) newestProcess(ctx context.Context) (string, string, error) {
 	result, err := p.deps.Client.Get(ctx, logViewerLogPath, api.RequestOptions{Params: map[string]any{
 		"take": 1, "skip": 0, "orderDirection": "Descending",
 	}})
 	if err != nil {
-		return "", ""
+		return "", "", err
 	}
 	envelope, ok := result.(map[string]any)
 	if !ok {
-		return "", ""
+		return "", "", nil
 	}
 	items, _ := envelope["items"].([]any)
 	if len(items) == 0 {
-		return "", ""
+		return "", "", nil
 	}
 	entry, ok := items[0].(map[string]any)
 	if !ok {
-		return "", ""
+		return "", "", nil
 	}
 	var processID, machineName string
 	if properties, ok := entry["properties"].([]any); ok {
@@ -473,7 +493,7 @@ func (p *watchProbes) newestProcess(ctx context.Context) (string, string) {
 			}
 		}
 	}
-	return processID, machineName
+	return processID, machineName, nil
 }
 
 func (p *watchProbes) badIndexes(ctx context.Context) []string {
