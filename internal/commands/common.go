@@ -22,6 +22,12 @@ type Dependencies struct {
 	OutputFlag            *string
 	EnvOutputProvider     func() config.OutputFormat
 	ConfigOptionsProvider func() config.LoadOptions
+	// ConfigProvider returns the resolved config AFTER --profile/--config
+	// selection: the Config value above is copied at command-tree
+	// construction, before PersistentPreRunE reloads the runtime, so
+	// commands that need the base URL must read it through this provider
+	// or they will target the default environment regardless of --profile.
+	ConfigProvider func() config.Config
 }
 
 func (d Dependencies) requestedOutput() string {
@@ -29,6 +35,13 @@ func (d Dependencies) requestedOutput() string {
 		return ""
 	}
 	return *d.OutputFlag
+}
+
+func (d Dependencies) currentConfig() config.Config {
+	if d.ConfigProvider != nil {
+		return d.ConfigProvider()
+	}
+	return d.Config
 }
 
 func (d Dependencies) envOutput() config.OutputFormat {
