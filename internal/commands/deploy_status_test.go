@@ -337,10 +337,10 @@ func TestDeployStatusTemplateWhitespaceIsSignificant(t *testing.T) {
 	template := `{"Name":"Example Template","Alias":"exampleTemplate","Content":"@inherits X\r\n<p>hi</p>\r\n","Udi":"umb://template/eeeeeeee111122223333444444444444","Dependencies":[],"__type":"Umbraco.Deploy.Infrastructure,X","__version":"18.0.1"}`
 	writeUda(t, dir, "template__e.uda", template)
 	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.URL.Path == "/umbraco/management/api/v1/security/back-office/token":
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
 			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
-		case req.URL.Path == "/umbraco/management/api/v1/server/status":
+		case "/umbraco/management/api/v1/server/status":
 			return endpointJSONResponse(http.StatusOK, `{"serverStatus":"Run"}`), nil
 		default:
 			// Same content, LF endings, but an extra trailing newline: line
@@ -360,10 +360,10 @@ func TestDeployStatusRelationTypeBehavioralDrift(t *testing.T) {
 	relation := `{"Name":"Related Media","Alias":"relatedMedia","IsBidirectional":true,"IsDependency":false,"Udi":"umb://relation-type/ffffffff111122223333444444444444","Dependencies":[],"__type":"Umbraco.Deploy.Infrastructure,X","__version":"18.0.1"}`
 	writeUda(t, dir, "relation-type__f.uda", relation)
 	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.URL.Path == "/umbraco/management/api/v1/security/back-office/token":
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
 			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
-		case req.URL.Path == "/umbraco/management/api/v1/server/status":
+		case "/umbraco/management/api/v1/server/status":
 			return endpointJSONResponse(http.StatusOK, `{"serverStatus":"Run"}`), nil
 		default:
 			return endpointJSONResponse(http.StatusOK, `{"name":"Related Media","alias":"relatedMedia","isBidirectional":false,"isDependency":false}`), nil
