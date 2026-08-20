@@ -102,6 +102,7 @@ Scripts and CI gates can rely on the exit code to tell failure classes apart:
 | 4 | The Management API answered with an error status (4xx/5xx) |
 | 5 | `deploy watch` reached its failed phase (sustained downtime or post-landing health failure beyond `--escalation`) |
 | 6 | `deploy watch` reached `--timeout` without verification — deployment status unknown, never inferred |
+| 7 | `deploy status` ran cleanly and found drifted or missing entities (suppress with `--exit-zero`) |
 
 JSON output is the stable machine contract — only additive changes. Table
 output is unstable and may reorder columns between releases.
@@ -348,7 +349,7 @@ testing) are not part of this repo — get those from
 - `logs` (6) — incl. `tail` for following new entries as they arrive
 - `server` (5)
 - `health` (4)
-- `deploy` (1) — effect-based deployment observation: `watch` polls an environment for state deltas only a deploy can cause (app recycle via ProcessId, 503→401→200 recovery, index rebuilds) and emits phase transitions; host-agnostic and read-only
+- `deploy` (2) — effect-based deployment observation, host-agnostic and read-only: `watch` polls an environment for state deltas only a deploy can cause (app recycle via ProcessId, 503→401→200 recovery, index rebuilds) and emits phase transitions; `status` compares local Deploy `.uda` artifacts against the environment per entity as a pre-flight drift check
 - `published-cache` (3) — status / rebuild / reload, for stale-content incident response
 - `indexer` (3) — Examine index health and rebuilds, with `--wait` polling
 - `redirect` (6) — the redirect URL tracker: list/get/delete, status, enable/disable

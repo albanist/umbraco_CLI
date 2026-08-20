@@ -17,5 +17,6 @@ func RegisterDeploy(root *cobra.Command, deps Dependencies) {
 		Short: "Effect-based deployment observation (watch an environment, not a pipeline)",
 	}
 	deploy.AddCommand(deployWatch(deps))
+	deploy.AddCommand(deployStatus(deps))
 	root.AddCommand(deploy)
 }

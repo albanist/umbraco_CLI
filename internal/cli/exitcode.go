@@ -5,7 +5,7 @@ import "errors"
 // exitCoder is implemented by error types that map to a documented exit
 // code: schema-diff differences (2), auth failures (3), API error
 // responses (4), deploy watch failed (5), deploy watch timeout —
-// status unknown (6).
+// status unknown (6), deploy status drift/missing found (7).
 type exitCoder interface {
 	ExitCode() int
 }
