@@ -151,6 +151,8 @@ umbraco webhook delete <id> --force [flags]
 umbraco webhook update <id>
 ```
 
+PUT /webhook/{id}. An events array in the patch REPLACES the whole subscription set (identical for alias strings and object-form entries) — events are pure identifiers, so an entry-wise merge could only ever add subscriptions and never remove one. Omit events from --merge-json to keep the current set.
+
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--dry-run` | bool | false | Print the planned request without executing |
