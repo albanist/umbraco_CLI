@@ -2,7 +2,7 @@
 name: umbraco-user-group
 description: "Backoffice user group management (permission sets)"
 metadata:
-  version: 0.4.9
+  version: 0.4.10
   requires:
     bins:
       - umbraco
