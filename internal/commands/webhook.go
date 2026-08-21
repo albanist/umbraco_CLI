@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
@@ -63,6 +65,9 @@ func webhookCreate(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := normalizeWebhookEvents(body); err != nil {
+				return err
+			}
 			if _, err := ensurePayloadID(body); err != nil {
 				return err
 			}
@@ -81,10 +86,37 @@ func webhookCreate(deps Dependencies) *cobra.Command {
 
 func webhookUpdate(deps Dependencies) *cobra.Command {
 	return updateCommand(deps, updateSpec{
-		Use:   "update <id>",
-		Short: "Update a webhook",
-		Path:  func(args []string) string { return api.JoinPath("/webhook/%s", args[0]) },
+		Use:             "update <id>",
+		Short:           "Update a webhook",
+		Path:            func(args []string) string { return api.JoinPath("/webhook/%s", args[0]) },
+		Normalize:       normalizeWebhookEvents,
+		NormalizeMerged: normalizeWebhookEvents,
 	})
+}
+
+// normalizeWebhookEvents maps response-shaped events entries
+// ({eventName, eventType, alias}) down to the alias strings the webhook
+// request models require. GET returns events as objects while PUT/POST
+// take string arrays, so without this every merge-based update — even one
+// not touching events — failed server validation. Idempotent: string
+// entries pass through untouched.
+func normalizeWebhookEvents(body map[string]any) error {
+	events, ok := body["events"].([]any)
+	if !ok {
+		return nil
+	}
+	for i, item := range events {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		alias, _ := entry["alias"].(string)
+		if alias == "" {
+			return fmt.Errorf("events[%d] is an object without an alias; pass event aliases as strings (see 'umbraco api GET /webhook/events')", i)
+		}
+		events[i] = alias
+	}
+	return nil
 }
 
 func webhookDelete(deps Dependencies) *cobra.Command {
