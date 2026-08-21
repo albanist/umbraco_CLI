@@ -86,9 +86,14 @@ func webhookCreate(deps Dependencies) *cobra.Command {
 
 func webhookUpdate(deps Dependencies) *cobra.Command {
 	return updateCommand(deps, updateSpec{
-		Use:             "update <id>",
-		Short:           "Update a webhook",
-		Path:            func(args []string) string { return api.JoinPath("/webhook/%s", args[0]) },
+		Use:   "update <id>",
+		Short: "Update a webhook",
+		Long:  "PUT /webhook/{id}. An events array in the patch REPLACES the whole subscription set (identical for alias strings and object-form entries) — events are pure identifiers, so an entry-wise merge could only ever add subscriptions and never remove one. Omit events from --merge-json to keep the current set.",
+		Path:  func(args []string) string { return api.JoinPath("/webhook/%s", args[0]) },
+		// Normalize runs on the patch BEFORE the merge deliberately: mapping
+		// object-form events to alias strings there keeps them out of the
+		// alias-aware array merge, giving events consistent replace
+		// semantics in both entry forms.
 		Normalize:       normalizeWebhookEvents,
 		NormalizeMerged: normalizeWebhookEvents,
 	})
