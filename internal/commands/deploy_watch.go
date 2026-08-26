@@ -36,6 +36,7 @@ func deployWatch(deps Dependencies) *cobra.Command {
 	var interval time.Duration
 	var timeout time.Duration
 	var escalation time.Duration
+	var settle time.Duration
 	var heartbeat time.Duration
 	var jsonOut bool
 	var skipIndexVerify bool
@@ -47,7 +48,7 @@ func deployWatch(deps Dependencies) *cobra.Command {
 
 Signals: the newest log entry's ProcessId/MachineName (an app recycle means the deploy landed), the management token endpoint probed unauthenticated (503/unreachable = down; 401 = app alive and rejecting the probe — the earliest all-clear, typically ~15s before public pages return), configured health paths on the public host, and Examine index health (deploys can trigger full index rebuilds, during which search is empty — "deploy succeeded" and "the site works" are different questions).
 
-Phases: baseline → restarting → app-alive → serving → landed → verified | failed | timeout. Everything is baselined before arming — a signal already true on the target is not a signal. Transitions are emitted with timestamps as they are observed (fast recycles may skip phases); silence between transitions means "still in the current phase", and --heartbeat writes a periodic still-alive line to stderr so silence is never ambiguous. Success is never inferred from silence: reaching --timeout without verification exits 6 (status unknown), and sustained downtime or post-landing health failure beyond --escalation exits 5.`,
+Phases: baseline → restarting → app-alive → serving → landed → settling → verified | failed | timeout. Everything is baselined before arming — a signal already true on the target is not a signal. Verified requires the environment to stay healthy for a full --settle window after everything first looks good: deployment pipelines can disturb the environment AFTER the app is already serving (observed in production: Umbraco Deploy wiped every Examine index 27 seconds after a single-sample check had passed, leaving search empty for 17 minutes), so a single passing sample is not verification. An interrupted settle (index rebuild, health flap) is emitted as settle-interrupted and the window restarts once the environment recovers. Transitions are emitted with timestamps as they are observed (fast recycles may skip phases); silence between transitions means "still in the current phase", and --heartbeat writes a periodic still-alive line to stderr so silence is never ambiguous. Success is never inferred from silence: reaching --timeout without verification exits 6 (status unknown), and sustained downtime or post-landing health failure beyond --escalation exits 5.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if interval <= 0 {
@@ -62,6 +63,9 @@ Phases: baseline → restarting → app-alive → serving → landed → verifie
 				healthPaths = []string{"/"}
 			}
 
+			if settle < 0 {
+				return fmt.Errorf("--settle cannot be negative")
+			}
 			probes := &watchProbes{
 				deps:        deps,
 				httpClient:  watchHTTPClient(deps),
@@ -73,7 +77,7 @@ Phases: baseline → restarting → app-alive → serving → landed → verifie
 
 			ctx := cmd.Context()
 			baseline := probes.observe(ctx)
-			machine, err := newWatchMachine(baseline, escalation, skipIndexVerify)
+			machine, err := newWatchMachine(baseline, escalation, settle, skipIndexVerify)
 			if err != nil {
 				return err
 			}
@@ -143,6 +147,7 @@ Phases: baseline → restarting → app-alive → serving → landed → verifie
 	cmd.Flags().DurationVar(&interval, "interval", 5*time.Second, "Poll interval")
 	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Minute, "Give up after this long without verification (exit 6, status unknown)")
 	cmd.Flags().DurationVar(&escalation, "escalation", 10*time.Minute, "Treat sustained downtime or post-landing health failure longer than this as failed (exit 5)")
+	cmd.Flags().DurationVar(&settle, "settle", 90*time.Second, "How long the environment must stay healthy after everything first looks good before verified is emitted; 0 disables (single-sample verification)")
 	cmd.Flags().DurationVar(&heartbeat, "heartbeat", time.Minute, "Interval for still-alive lines on stderr; 0 disables")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit phase transitions as NDJSON")
 	cmd.Flags().BoolVar(&skipIndexVerify, "skip-index-verify", false, "Do not require Examine indexes to be healthy for the verified phase")
@@ -212,6 +217,7 @@ type watchMachine struct {
 	baselineHealthy     []string
 	baselineBadIndexes  map[string]struct{}
 	escalation          time.Duration
+	settle              time.Duration
 	skipIndexVerify     bool
 
 	phase          string
@@ -222,10 +228,12 @@ type watchMachine struct {
 	sawAppAlive    bool
 	sawServing     bool
 	sawLanded      bool
+	settleStart    time.Time
+	settleAttempt  int
 	failureReason  string
 }
 
-func newWatchMachine(baseline watchObservation, escalation time.Duration, skipIndexVerify bool) (*watchMachine, error) {
+func newWatchMachine(baseline watchObservation, escalation time.Duration, settle time.Duration, skipIndexVerify bool) (*watchMachine, error) {
 	if !baseline.MgmtAlive {
 		return nil, fmt.Errorf("cannot baseline the target: the management endpoint is not answering (status %d) — refusing to arm, a watch started mid-outage cannot tell a deploy from the outage", baseline.MgmtStatus)
 	}
@@ -254,6 +262,7 @@ func newWatchMachine(baseline watchObservation, escalation time.Duration, skipIn
 		baselineHealthy:     healthy,
 		baselineBadIndexes:  bad,
 		escalation:          escalation,
+		settle:              settle,
 		skipIndexVerify:     skipIndexVerify,
 		phase:               "baseline",
 		prevAlive:           true,
@@ -326,9 +335,44 @@ func (m *watchMachine) observe(obs watchObservation) ([]watchEvent, watchOutcome
 		m.healthBadSince = time.Time{}
 	}
 
-	if m.sawLanded && m.sawServing && m.indexesClean(obs) {
-		transition("verified", map[string]any{"paths": m.baselineHealthy, "indexVerify": !m.skipIndexVerify})
-		return events, watchOutcomeVerified
+	// Verification: everything must look good, and stay good for a full
+	// settle window. Deployment pipelines can disturb the environment after
+	// the app is already serving (index rebuilds discard replicated-clean
+	// indexes at deployment completion), so a single passing sample is not
+	// verification — it can land exactly in the healthy gap.
+	allClear := m.sawLanded && m.sawServing && healthOK && m.indexesClean(obs)
+	if allClear {
+		if m.settle <= 0 {
+			transition("verified", map[string]any{"paths": m.baselineHealthy, "indexVerify": !m.skipIndexVerify, "settledFor": "disabled"})
+			return events, watchOutcomeVerified
+		}
+		if m.settleStart.IsZero() {
+			m.settleStart = obs.At
+			m.settleAttempt++
+			transition("settling", map[string]any{"for": m.settle.String(), "attempt": m.settleAttempt})
+		} else if obs.At.Sub(m.settleStart) >= m.settle {
+			transition("verified", map[string]any{"paths": m.baselineHealthy, "indexVerify": !m.skipIndexVerify, "settledFor": obs.At.Sub(m.settleStart).Round(time.Second).String()})
+			return events, watchOutcomeVerified
+		}
+	} else if !m.settleStart.IsZero() {
+		// The settle window broke: make the disturbance visible and restart
+		// the window once the environment recovers.
+		detail := map[string]any{}
+		if !m.indexesClean(obs) {
+			if obs.BadIndexes == nil {
+				detail["reason"] = "index state unreadable"
+			} else {
+				detail["reason"] = "index rebuild observed"
+				detail["indexes"] = obs.BadIndexes
+			}
+		} else if healthKnown && !healthOK {
+			detail["reason"] = "health paths failing"
+			detail["paths"] = unhealthyPathNames(obs.Health)
+		} else {
+			detail["reason"] = "health state unreadable"
+		}
+		m.settleStart = time.Time{}
+		transition("settle-interrupted", detail)
 	}
 
 	return events, watchOutcomeNone
