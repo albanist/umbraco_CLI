@@ -2,7 +2,7 @@
 name: umbraco-deploy
 description: "Effect-based deployment observation (watch an environment, not a pipeline)"
 metadata:
-  version: 0.4.10
+  version: 0.4.11
   requires:
     bins:
       - umbraco
