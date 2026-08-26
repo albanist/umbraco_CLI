@@ -224,3 +224,34 @@ func TestWatchMachineSettleInterruptedByUnreadableIndexState(t *testing.T) {
 		t.Fatalf("expected unreadable reason, got %+v", events[0].Detail)
 	}
 }
+
+func TestWatchMachineDowntimeDuringSettleResetsTheClock(t *testing.T) {
+	machine, _ := newWatchMachine(watchBaseline(), 10*time.Minute, time.Minute, true)
+	at := watchBaseline().At
+	// All clear → settling.
+	machine.observe(watchObservation{At: at.Add(time.Minute), MgmtAlive: true, MgmtStatus: 401, ProcessID: "2000", MachineName: "web-a", Health: map[string]bool{"/": true}})
+	// Management goes down mid-settle for longer than the settle window.
+	events, _ := machine.observe(watchObservation{At: at.Add(time.Minute + 10*time.Second), MgmtAlive: false, MgmtStatus: 503})
+	found := false
+	for _, event := range events {
+		if event.Phase == "settle-interrupted" && event.Detail["reason"] == "management endpoint down" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected downtime to interrupt the settle, got %v", phases(events))
+	}
+	// First recovery tick: elapsed exceeds the settle window, but the
+	// outage must not count as healthy time — settling restarts, no verify.
+	events, outcome := machine.observe(watchObservation{At: at.Add(3 * time.Minute), MgmtAlive: true, MgmtStatus: 401, ProcessID: "2000", MachineName: "web-a", Health: map[string]bool{"/": true}})
+	if outcome == watchOutcomeVerified {
+		t.Fatalf("outage counted as healthy settle time: %v", phases(events))
+	}
+	if phases(events)[len(events)-1] != "settling" {
+		t.Fatalf("expected settle restart on recovery, got %v", phases(events))
+	}
+	// A full clean window after recovery verifies.
+	if _, outcome := machine.observe(watchObservation{At: at.Add(3*time.Minute + 61*time.Second), MgmtAlive: true, MgmtStatus: 401, ProcessID: "2000", MachineName: "web-a", Health: map[string]bool{"/": true}}); outcome != watchOutcomeVerified {
+		t.Fatalf("expected verified after clean post-recovery window, got %v", outcome)
+	}
+}

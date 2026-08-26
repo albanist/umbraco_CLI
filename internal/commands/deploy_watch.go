@@ -285,6 +285,13 @@ func (m *watchMachine) observe(obs watchObservation) ([]watchEvent, watchOutcome
 			m.sawRestarting = true
 			transition("restarting", map[string]any{"managementStatus": obs.MgmtStatus})
 		}
+		// Downtime breaks an in-progress settle: without this, an outage
+		// longer than the settle window (but under escalation) would count
+		// as healthy time and verify on the first recovery tick.
+		if !m.settleStart.IsZero() {
+			m.settleStart = time.Time{}
+			transition("settle-interrupted", map[string]any{"reason": "management endpoint down"})
+		}
 		if obs.At.Sub(m.downSince) >= m.escalation {
 			m.failureReason = fmt.Sprintf("management endpoint down for %s (threshold %s)", obs.At.Sub(m.downSince).Round(time.Second), m.escalation)
 			transition("failed", map[string]any{"reason": m.failureReason})

@@ -264,19 +264,26 @@ func compareArtifact(ctx context.Context, deps Dependencies, artifact udaArtifac
 	result.Udi, _ = artifact.Body["Udi"].(string)
 	result.Name, _ = artifact.Body["Name"].(string)
 
-	if strings.HasPrefix(artifact.Kind, "umbraco-automate-") {
+	isAutomate := strings.HasPrefix(artifact.Kind, "umbraco-automate-")
+	fetchPath, comparer := udaComparer(artifact.Kind)
+
+	// The GUID guard applies to every kind that would issue a request —
+	// Automate kinds included, which are all GUID-keyed. Kinds with no
+	// comparison stay "unknown" regardless of identifier shape, since they
+	// never issue a request.
+	if (isAutomate || comparer != nil) && !udaKindAcceptsRawID(artifact.Kind) && !udiGUIDPattern.MatchString(artifact.GUID) {
+		result.Status = "error"
+		result.Reason = fmt.Sprintf("kind %s requires a GUID identifier, got %q", artifact.Kind, artifact.GUID)
+		return result
+	}
+
+	if isAutomate {
 		return compareAutomateArtifact(ctx, deps, artifact, result, flagStepAliases, automateErr)
 	}
 
-	fetchPath, comparer := udaComparer(artifact.Kind)
 	if comparer == nil {
 		result.Status = "unknown"
 		result.Reason = fmt.Sprintf("no comparison implemented for kind %s", artifact.Kind)
-		return result
-	}
-	if !udaKindAcceptsRawID(artifact.Kind) && !udiGUIDPattern.MatchString(artifact.GUID) {
-		result.Status = "error"
-		result.Reason = fmt.Sprintf("kind %s requires a GUID identifier, got %q", artifact.Kind, artifact.GUID)
 		return result
 	}
 

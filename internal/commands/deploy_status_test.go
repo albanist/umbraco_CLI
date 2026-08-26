@@ -429,3 +429,15 @@ func TestDeployStatusNonGUIDOnGUIDRouteIsError(t *testing.T) {
 		t.Fatalf("expected GUID-route guard, got %+v", byFile["data-type__bad.uda"])
 	}
 }
+
+func TestDeployStatusAutomateNonGUIDIsErrorNotRequest(t *testing.T) {
+	dir := t.TempDir()
+	bad := strings.Replace(statusAutomationUda, "umb://umbraco-automate-automation/dddddddd111122223333444444444444", "umb://umbraco-automate-automation/not-a-guid", 1)
+	writeUda(t, dir, "umbraco-automate-automation__bad.uda", bad)
+	payload := runDeployStatus(t, deployStatusDeps(t, statusRemoteDataType, statusRemoteDoctype, true), dir)
+	byFile := statusByFile(t, payload)
+	automation := byFile["umbraco-automate-automation__bad.uda"]
+	if automation["status"] != "error" || !strings.Contains(automation["reason"].(string), "requires a GUID") {
+		t.Fatalf("expected GUID guard before automate dispatch, got %+v", automation)
+	}
+}
