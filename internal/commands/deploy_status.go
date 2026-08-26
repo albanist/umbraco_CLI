@@ -43,7 +43,7 @@ func deployStatus(deps Dependencies) *cobra.Command {
 
 Comparison is per entity kind (data types, document/media/member types, templates, containers, member groups, relation types) over the fields the artifact carries; environment-only additions like migration markers are ignored. Automate artifacts degrade to status "unknown" where the Automate API is unreachable (Cloud basic auth blocks package APIs on non-live environments) — never a false in-sync — but their step aliases are still read locally, and --flag-step-alias marks automations carrying aliases you know your Deploy version cannot validate (configuration, not encoded knowledge: those landmines change as bugs are fixed).
 
-Exit 2 when drift or missing entities are found (suppress with --exit-zero); parse failures and unreachable comparisons are reported per artifact, never silently dropped.`,
+Exit 7 when drift or missing entities are found (suppress with --exit-zero); parse failures and unreachable comparisons are reported per artifact, never silently dropped. The report is stdout; the drift summary line is an error and goes to stderr, so -o json stdout stays parseable — do not merge the streams with 2>&1 if you parse the output.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if concurrency < 1 {
@@ -146,7 +146,10 @@ func loadUdaArtifacts(dir string, kinds []string) ([]udaArtifact, error) {
 		}
 		artifact := parseUdaFile(filepath.Join(dir, entry.Name()))
 		if len(wanted) > 0 {
-			if _, ok := wanted[artifact.Kind]; !ok && artifact.Err == nil {
+			// The filter applies to errored artifacts too: an out-of-scope
+			// artifact must not pollute a filtered run's error count, and an
+			// unparseable kind cannot match any filter.
+			if _, ok := wanted[artifact.Kind]; !ok {
 				continue
 			}
 		}
@@ -178,24 +181,38 @@ func parseUdaFile(path string) udaArtifact {
 	return artifact
 }
 
-// parseUdi splits umb://<entity-type>/<guid-without-dashes> into the entity
-// type and a dashed GUID the Management API accepts. A malformed identifier
-// returns an empty GUID so the caller rejects the artifact instead of
-// issuing a request against a collection or invalid-UUID route.
+// parseUdi splits umb://<entity-type>/<identifier>. A 32-hex identifier is
+// normalized to the dashed GUID the Management API accepts; other
+// identifiers (languages are keyed by ISO code, e.g. umb://language/en-US)
+// are returned verbatim, and each kind's route decides whether a raw
+// identifier is acceptable.
 func parseUdi(udi string) (string, string) {
 	rest, ok := strings.CutPrefix(udi, "umb://")
 	if !ok {
 		return "", ""
 	}
-	kind, hex, ok := strings.Cut(rest, "/")
-	if !ok || !udiHexPattern.MatchString(hex) {
+	kind, identifier, ok := strings.Cut(rest, "/")
+	if !ok || identifier == "" {
 		return kind, ""
 	}
-	hex = strings.ToLower(hex)
-	return kind, strings.Join([]string{hex[0:8], hex[8:12], hex[12:16], hex[16:20], hex[20:32]}, "-")
+	if udiHexPattern.MatchString(identifier) {
+		identifier = strings.ToLower(identifier)
+		return kind, strings.Join([]string{identifier[0:8], identifier[8:12], identifier[12:16], identifier[16:20], identifier[20:32]}, "-")
+	}
+	return kind, identifier
 }
 
 var udiHexPattern = regexp.MustCompile(`^[0-9a-fA-F]{32}$`)
+
+var udiGUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// udaKindAcceptsRawID lists kinds whose Management API routes take a
+// non-GUID identifier. Every other kind requires a GUID, and a non-GUID
+// identifier there is an artifact error — never a request against a
+// collection or invalid-UUID route.
+func udaKindAcceptsRawID(kind string) bool {
+	return kind == "language"
+}
 
 func compareArtifacts(ctx context.Context, deps Dependencies, artifacts []udaArtifact, flagStepAliases []string, concurrency int) []udaStatusResult {
 	// Probe Automate availability once up front: on an environment without
@@ -255,6 +272,11 @@ func compareArtifact(ctx context.Context, deps Dependencies, artifact udaArtifac
 	if comparer == nil {
 		result.Status = "unknown"
 		result.Reason = fmt.Sprintf("no comparison implemented for kind %s", artifact.Kind)
+		return result
+	}
+	if !udaKindAcceptsRawID(artifact.Kind) && !udiGUIDPattern.MatchString(artifact.GUID) {
+		result.Status = "error"
+		result.Reason = fmt.Sprintf("kind %s requires a GUID identifier, got %q", artifact.Kind, artifact.GUID)
 		return result
 	}
 
@@ -519,6 +541,8 @@ func udaComparer(kind string) (string, func(artifact map[string]any, remote map[
 		return "/member-group/%s", compareNameOnlyArtifact
 	case "relation-type":
 		return "/relation-type/%s", compareRelationTypeArtifact
+	case "language":
+		return "/language/%s", compareLanguageArtifact
 	}
 	return "", nil
 }
@@ -839,4 +863,26 @@ func guidLikeEqual(a string, b string) bool {
 
 func normalizeNullableString(value string) string {
 	return strings.TrimSpace(value)
+}
+
+// compareLanguageArtifact compares the language fields the artifact
+// carries. Languages are keyed by ISO code, not GUID.
+func compareLanguageArtifact(artifact map[string]any, remote map[string]any) []string {
+	diffs := diffFields(nil,
+		fieldDiff("name", artifact["Name"], remote["name"]),
+		fieldDiff("isoCode", artifact["IsoCode"], remote["isoCode"]),
+	)
+	for artifactKey, remoteKey := range map[string]string{"IsDefault": "isDefault", "IsMandatory": "isMandatory"} {
+		if value, ok := artifact[artifactKey].(bool); ok {
+			if remoteValue, isBool := remote[remoteKey].(bool); isBool && value != remoteValue {
+				diffs = append(diffs, remoteKey)
+			}
+		}
+	}
+	if fallback, ok := artifact["FallbackIsoCode"].(string); ok && fallback != "" {
+		if fallback != udaStringField(remote, "fallbackIsoCode") {
+			diffs = append(diffs, "fallbackIsoCode")
+		}
+	}
+	return diffs
 }

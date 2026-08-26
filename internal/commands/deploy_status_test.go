@@ -376,3 +376,56 @@ func TestDeployStatusRelationTypeBehavioralDrift(t *testing.T) {
 		t.Fatalf("expected directionality drift, got %+v", byFile["relation-type__f.uda"])
 	}
 }
+
+func TestParseUdiKeepsNonGUIDIdentifiers(t *testing.T) {
+	kind, id := parseUdi("umb://language/en-US")
+	if kind != "language" || id != "en-US" {
+		t.Fatalf("expected language ISO identifier kept verbatim, got %q %q", kind, id)
+	}
+}
+
+func TestDeployStatusLanguageComparesByIsoCode(t *testing.T) {
+	dir := t.TempDir()
+	lang := `{"Name":"English (United States)","IsoCode":"en-US","IsDefault":true,"IsMandatory":false,"Udi":"umb://language/en-US","Dependencies":[],"__type":"Umbraco.Deploy.Infrastructure,X","__version":"18.0.1"}`
+	writeUda(t, dir, "language__en-US.uda", lang)
+	deps := endpointDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return endpointJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/server/status":
+			return endpointJSONResponse(http.StatusOK, `{"serverStatus":"Run"}`), nil
+		case "/umbraco/management/api/v1/language/en-US":
+			return endpointJSONResponse(http.StatusOK, `{"name":"English (United States)","isoCode":"en-US","isDefault":false,"isMandatory":false,"fallbackIsoCode":null}`), nil
+		default:
+			return endpointJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+	payload := runDeployStatus(t, deps, dir)
+	byFile := statusByFile(t, payload)
+	language := byFile["language__en-US.uda"]
+	if language["status"] != "drifted" || !strings.Contains(jsonString(language["diffs"]), "isDefault") {
+		t.Fatalf("expected language compared with isDefault drift, got %+v", language)
+	}
+}
+
+func TestDeployStatusKindFilterExcludesErroredOutOfScopeArtifacts(t *testing.T) {
+	dir := t.TempDir()
+	writeUda(t, dir, "data-type__a.uda", statusDataTypeUda)
+	writeUda(t, dir, "broken__x.uda", "{not json")
+	payload := runDeployStatus(t, deployStatusDeps(t, statusRemoteDataType, statusRemoteDoctype, false), dir, "--kind", "data-type")
+	summary := payload["summary"].(map[string]any)
+	if summary["total"].(float64) != 1 || summary["errors"].(float64) != 0 {
+		t.Fatalf("expected filtered run to exclude out-of-scope errored artifacts, got %+v", summary)
+	}
+}
+
+func TestDeployStatusNonGUIDOnGUIDRouteIsError(t *testing.T) {
+	dir := t.TempDir()
+	bad := strings.Replace(statusDataTypeUda, "umb://data-type/aaaaaaaa111122223333444444444444", "umb://data-type/en-US", 1)
+	writeUda(t, dir, "data-type__bad.uda", bad)
+	payload := runDeployStatus(t, deployStatusDeps(t, statusRemoteDataType, statusRemoteDoctype, false), dir)
+	byFile := statusByFile(t, payload)
+	if byFile["data-type__bad.uda"]["status"] != "error" || !strings.Contains(byFile["data-type__bad.uda"]["reason"].(string), "requires a GUID") {
+		t.Fatalf("expected GUID-route guard, got %+v", byFile["data-type__bad.uda"])
+	}
+}
