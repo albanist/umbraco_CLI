@@ -441,3 +441,29 @@ func TestDeployStatusAutomateNonGUIDIsErrorNotRequest(t *testing.T) {
 		t.Fatalf("expected GUID guard before automate dispatch, got %+v", automation)
 	}
 }
+
+func TestDeployStatusDriftErrorQuietOnlyUnderExplicitJSON(t *testing.T) {
+	dir := t.TempDir()
+	missing := strings.Replace(statusDataTypeUda, "aaaaaaaa111122223333444444444444", "eeeeeeee111122223333444444444444", 1)
+	writeUda(t, dir, "data-type__missing.uda", missing)
+	deps := deployStatusDeps(t, statusRemoteDataType, statusRemoteDoctype, false)
+
+	_, err := execute(buildDeployRoot(deps), "deploy", "status", "--uda-dir", dir, "-o", " JSON ")
+	var drift deployDriftFoundError
+	if err == nil || !errorsAsDrift(err, &drift) || !drift.QuietExit() || drift.ExitCode() != 7 {
+		t.Fatalf("expected quiet exit-7 drift error under explicit -o json, got %v", err)
+	}
+
+	_, err = execute(buildDeployRoot(deps), "deploy", "status", "--uda-dir", dir, "-o", "table")
+	if err == nil || !errorsAsDrift(err, &drift) || drift.QuietExit() {
+		t.Fatalf("expected audible drift error under -o table, got %v", err)
+	}
+}
+
+func errorsAsDrift(err error, target *deployDriftFoundError) bool {
+	d, ok := err.(deployDriftFoundError)
+	if ok {
+		*target = d
+	}
+	return ok
+}

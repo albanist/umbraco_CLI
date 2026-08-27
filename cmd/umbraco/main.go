@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -15,7 +16,13 @@ func main() {
 	defer stop()
 
 	if err := cli.NewRootCommand().ExecuteContext(ctx); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		// Quiet-exit errors carry only an exit code: the command already
+		// printed its report, and machine consumers that merge streams must
+		// not have it corrupted by a redundant summary line.
+		var quiet interface{ QuietExit() bool }
+		if !errors.As(err, &quiet) || !quiet.QuietExit() {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		os.Exit(cli.ExitCode(err))
 	}
 }

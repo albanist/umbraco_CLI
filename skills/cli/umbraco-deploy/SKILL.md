@@ -35,7 +35,7 @@ Reads the Umbraco Deploy artifacts in --uda-dir (the site repo's umbraco/Deploy/
 
 Comparison is per entity kind (data types, document/media/member types, templates, containers, member groups, relation types) over the fields the artifact carries; environment-only additions like migration markers are ignored. Automate artifacts degrade to status "unknown" where the Automate API is unreachable (Cloud basic auth blocks package APIs on non-live environments) — never a false in-sync — but their step aliases are still read locally, and --flag-step-alias marks automations carrying aliases you know your Deploy version cannot validate (configuration, not encoded knowledge: those landmines change as bugs are fixed).
 
-Exit 7 when drift or missing entities are found (suppress with --exit-zero); parse failures and unreachable comparisons are reported per artifact, never silently dropped. The report is stdout; the drift summary line is an error and goes to stderr, so -o json stdout stays parseable — do not merge the streams with 2>&1 if you parse the output.
+Exit 7 when drift or missing entities are found (suppress with --exit-zero); parse failures and unreachable comparisons are reported per artifact, never silently dropped. The report is stdout; with an explicit -o json the drift exit is silent (the summary is inside the JSON), so even merged-stream captures parse. Without -o json the drift summary line goes to stderr.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|

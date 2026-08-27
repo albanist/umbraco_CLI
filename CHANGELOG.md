@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `deploy status` with an explicit `-o json` now exits quietly on drift (still exit 7): the JSON report already carries the summary, and CI harnesses that merge stdout and stderr were corrupting the JSON with the redundant stderr summary line — the cause of two consecutive field reports of "invalid JSON output". Terminal runs (no `-o json`) keep the human summary line on stderr. Also re-verified against the released 0.4.11 binary, for the record: the drift exit code is the constant 7 (one drifted artifact → exit 7), never the drift count — the reported 7-drifted/exit-7 match was the same coincidence twice
+
 ## v0.4.11 - 2026-08-26
 
 - fixed `deploy watch` verifying too early (HIGH, from the first production run): a single passing index check could land in the healthy gap between the app serving and the deployment pipeline discarding the replicated-clean indexes — observed live: `verified` exited 0 twenty-seven seconds before Umbraco Deploy wiped every Examine index, leaving search empty for 17 minutes while CI had gone green. `verified` now requires the environment to stay healthy (health paths + indexes) for a full `--settle` window (default 90s, measured from first all-clear; `0` restores single-sample) after a new `settling` phase; disturbances emit `settle-interrupted` with the reason and index names — visible, per the command's silence-is-never-ambiguous design — and restart the window on recovery, so `verified` means search actually works. The settle clock starts at all-clear rather than at `serving` deliberately: measured against the production timeline, a 60s-after-serving window would have missed that rebuild by 17 seconds

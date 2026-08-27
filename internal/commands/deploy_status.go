@@ -17,17 +17,26 @@ import (
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
+	"umbraco-cli/internal/config"
 )
 
 // deployDriftFoundError maps "the command ran cleanly and found drift" to
 // exit code 7 — its own documented code, since 2 is reserved for schema
-// diff differences by the global exit-code contract.
-type deployDriftFoundError struct{ drifted, missing int }
+// diff differences by the global exit-code contract. Under explicit
+// -o json the error is a quiet exit: the JSON report already carries the
+// summary, and CI harnesses that merge stdout+stderr would otherwise
+// corrupt the JSON with the summary line — the cause of two consecutive
+// field reports of "invalid JSON output".
+type deployDriftFoundError struct {
+	drifted, missing int
+	quiet            bool
+}
 
 func (e deployDriftFoundError) Error() string {
 	return fmt.Sprintf("deploy status found %d drifted and %d missing artifacts", e.drifted, e.missing)
 }
-func (deployDriftFoundError) ExitCode() int { return 7 }
+func (deployDriftFoundError) ExitCode() int     { return 7 }
+func (e deployDriftFoundError) QuietExit() bool { return e.quiet }
 
 func deployStatus(deps Dependencies) *cobra.Command {
 	var udaDir string
@@ -43,7 +52,7 @@ func deployStatus(deps Dependencies) *cobra.Command {
 
 Comparison is per entity kind (data types, document/media/member types, templates, containers, member groups, relation types) over the fields the artifact carries; environment-only additions like migration markers are ignored. Automate artifacts degrade to status "unknown" where the Automate API is unreachable (Cloud basic auth blocks package APIs on non-live environments) — never a false in-sync — but their step aliases are still read locally, and --flag-step-alias marks automations carrying aliases you know your Deploy version cannot validate (configuration, not encoded knowledge: those landmines change as bugs are fixed).
 
-Exit 7 when drift or missing entities are found (suppress with --exit-zero); parse failures and unreachable comparisons are reported per artifact, never silently dropped. The report is stdout; the drift summary line is an error and goes to stderr, so -o json stdout stays parseable — do not merge the streams with 2>&1 if you parse the output.`,
+Exit 7 when drift or missing entities are found (suppress with --exit-zero); parse failures and unreachable comparisons are reported per artifact, never silently dropped. The report is stdout; with an explicit -o json the drift exit is silent (the summary is inside the JSON), so even merged-stream captures parse. Without -o json the drift summary line goes to stderr.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if concurrency < 1 {
@@ -91,7 +100,7 @@ Exit 7 when drift or missing entities are found (suppress with --exit-zero); par
 				return err
 			}
 			if !exitZero && (summary["drifted"] > 0 || summary["missing-remote"] > 0) {
-				return deployDriftFoundError{drifted: summary["drifted"], missing: summary["missing-remote"]}
+				return deployDriftFoundError{drifted: summary["drifted"], missing: summary["missing-remote"], quiet: explicitJSONOutput(deps)}
 			}
 			return nil
 		},
@@ -127,6 +136,19 @@ type udaStatusResult struct {
 	Reason      string   `json:"reason,omitempty"`
 	StepAliases []string `json:"stepAliases,omitempty"`
 	Flags       []string `json:"flags,omitempty"`
+}
+
+// explicitJSONOutput reports whether the caller explicitly requested JSON
+// output, accepting the same spellings ParseOutputFormat does (-o JSON,
+// padded values). The env-default output deliberately does not count:
+// quiet exits are for machine consumers who asked for machine output.
+func explicitJSONOutput(deps Dependencies) bool {
+	requested := deps.requestedOutput()
+	if strings.TrimSpace(requested) == "" {
+		return false
+	}
+	format, err := config.ParseOutputFormat(requested)
+	return err == nil && format == config.OutputJSON
 }
 
 func loadUdaArtifacts(dir string, kinds []string) ([]udaArtifact, error) {
