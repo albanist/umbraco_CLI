@@ -448,7 +448,7 @@ func TestDeployStatusDriftErrorQuietOnlyUnderExplicitJSON(t *testing.T) {
 	writeUda(t, dir, "data-type__missing.uda", missing)
 	deps := deployStatusDeps(t, statusRemoteDataType, statusRemoteDoctype, false)
 
-	_, err := execute(buildDeployRoot(deps), "deploy", "status", "--uda-dir", dir, "-o", "json")
+	_, err := execute(buildDeployRoot(deps), "deploy", "status", "--uda-dir", dir, "-o", " JSON ")
 	var drift deployDriftFoundError
 	if err == nil || !errorsAsDrift(err, &drift) || !drift.QuietExit() || drift.ExitCode() != 7 {
 		t.Fatalf("expected quiet exit-7 drift error under explicit -o json, got %v", err)

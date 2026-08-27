@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"umbraco-cli/internal/api"
+	"umbraco-cli/internal/config"
 )
 
 // deployDriftFoundError maps "the command ran cleanly and found drift" to
@@ -99,7 +100,7 @@ Exit 7 when drift or missing entities are found (suppress with --exit-zero); par
 				return err
 			}
 			if !exitZero && (summary["drifted"] > 0 || summary["missing-remote"] > 0) {
-				return deployDriftFoundError{drifted: summary["drifted"], missing: summary["missing-remote"], quiet: deps.requestedOutput() == "json"}
+				return deployDriftFoundError{drifted: summary["drifted"], missing: summary["missing-remote"], quiet: explicitJSONOutput(deps)}
 			}
 			return nil
 		},
@@ -135,6 +136,19 @@ type udaStatusResult struct {
 	Reason      string   `json:"reason,omitempty"`
 	StepAliases []string `json:"stepAliases,omitempty"`
 	Flags       []string `json:"flags,omitempty"`
+}
+
+// explicitJSONOutput reports whether the caller explicitly requested JSON
+// output, accepting the same spellings ParseOutputFormat does (-o JSON,
+// padded values). The env-default output deliberately does not count:
+// quiet exits are for machine consumers who asked for machine output.
+func explicitJSONOutput(deps Dependencies) bool {
+	requested := deps.requestedOutput()
+	if strings.TrimSpace(requested) == "" {
+		return false
+	}
+	format, err := config.ParseOutputFormat(requested)
+	return err == nil && format == config.OutputJSON
 }
 
 func loadUdaArtifacts(dir string, kinds []string) ([]udaArtifact, error) {

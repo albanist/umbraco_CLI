@@ -20,7 +20,7 @@ func main() {
 		// printed its report, and machine consumers that merge streams must
 		// not have it corrupted by a redundant summary line.
 		var quiet interface{ QuietExit() bool }
-		if !(errors.As(err, &quiet) && quiet.QuietExit()) {
+		if !errors.As(err, &quiet) || !quiet.QuietExit() {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		os.Exit(cli.ExitCode(err))
