@@ -2,7 +2,7 @@
 name: umbraco-redirect
 description: "Redirect URL management (tracked 301s from renamed/moved documents)"
 metadata:
-  version: 0.4.12
+  version: 0.4.13
   requires:
     bins:
       - umbraco

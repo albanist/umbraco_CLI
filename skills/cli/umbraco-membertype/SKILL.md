@@ -2,7 +2,7 @@
 name: umbraco-membertype
 description: "Member type operations"
 metadata:
-  version: 0.4.12
+  version: 0.4.13
   requires:
     bins:
       - umbraco
