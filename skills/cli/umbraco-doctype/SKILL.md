@@ -132,7 +132,7 @@ umbraco doctype search
 | Command | Description |
 |---------|-------------|
 | `doctype add-container <id>` | Append a tab or group container to a document type |
-| `doctype add-property <id>` | Append a property to a document type under an existing container alias |
+| `doctype add-property <id>` | Append a property to a document type, creating its container with it if needed |
 | `doctype copy <id>` | Copy document type |
 | `doctype create` | Create document type (pass --element to create an element type) |
 | `doctype move <id>` | Move document type |
@@ -144,6 +144,8 @@ umbraco doctype search
 ```bash
 umbraco doctype add-container <id>
 ```
+
+GET /document-type/{id} + PUT /document-type/{id}. Note the server prunes containers that are saved with no properties (verified on 18.1) — this command verifies the container survived the save and errors when it was pruned. To create a container and its first property in one step use 'doctype add-property --create-container'.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
@@ -168,10 +170,14 @@ umbraco doctype add-container <id> [flags]
 umbraco doctype add-property <id>
 ```
 
+GET /document-type/{id} + PUT /document-type/{id}. The property lands under the --container tab/group. With --create-container the container is created in the same update when it does not exist yet — the two must travel in one request, because the server prunes containers that are saved empty (which is why a bare 'add-container' followed by 'add-property' cannot work).
+
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--alias` | string | — | Property alias (camelCase identifier) |
 | `--container` | string | — | Name of the existing tab/group container that should hold the property (case-insensitive match) |
+| `--container-type` | string | Group | Container type for --create-container: Group or Tab |
+| `--create-container` | bool | false | Create the --container together with this property when it does not exist yet |
 | `--data-type` | string | — | Data type ID (GUID) backing the property |
 | `--description` | string | — | Optional property description |
 | `--dry-run` | bool | false | Print the planned request without executing |

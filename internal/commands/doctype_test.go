@@ -758,6 +758,12 @@ func TestDoctypeAddContainerAppendsTabAtRoot(t *testing.T) {
 			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
 		case "/umbraco/management/api/v1/document-type/dt-1":
 			if req.Method == http.MethodGet {
+				// After the PUT the verification read must see the saved
+				// state, container included.
+				if observedPutBody != nil {
+					saved, _ := json.Marshal(observedPutBody)
+					return datatypeJSONResponse(http.StatusOK, string(saved)), nil
+				}
 				return datatypeJSONResponse(http.StatusOK, `{
   "id":"dt-1",
   "alias":"partnerPage",
@@ -839,6 +845,10 @@ func TestDoctypeAddContainerResolvesParentByName(t *testing.T) {
 			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
 		case "/umbraco/management/api/v1/document-type/dt-1":
 			if req.Method == http.MethodGet {
+				if observedPutBody != nil {
+					saved, _ := json.Marshal(observedPutBody)
+					return datatypeJSONResponse(http.StatusOK, string(saved)), nil
+				}
 				return datatypeJSONResponse(http.StatusOK, `{
   "id":"dt-1",
   "alias":"partnerPage",
@@ -1121,5 +1131,93 @@ func TestDoctypeReorderPropertiesRejectsUnknownAliasAndModeMix(t *testing.T) {
 	}
 	if _, err := execute(buildRootWithCollections(t, deps), "doctype", "reorder-properties", "dt-1", "--alias", "body"); err == nil || !strings.Contains(err.Error(), "--sort-order") {
 		t.Fatalf("expected sort-order requirement error, got %v", err)
+	}
+}
+
+func TestDoctypeAddContainerReportsPrunedContainerHonestly(t *testing.T) {
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/document-type/dt-1":
+			if req.Method == http.MethodPut {
+				return datatypeJSONResponse(http.StatusOK, `{"updated":true}`), nil
+			}
+			// The server accepted the PUT and pruned the empty container:
+			// every read reports no containers.
+			return datatypeJSONResponse(http.StatusOK, `{"id":"dt-1","alias":"partnerPage","name":"Partner Page","properties":[],"containers":[]}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	_, err := execute(buildRootWithCollections(t, deps), "doctype", "add-container", "dt-1", "--name", "Content", "--type", "Group")
+	if err == nil || !strings.Contains(err.Error(), "pruned the empty container") || !strings.Contains(err.Error(), "--create-container") {
+		t.Fatalf("expected honest prune error with the workflow hint, got %v", err)
+	}
+}
+
+func TestDoctypeAddPropertyCreateContainerBuildsBothInOnePut(t *testing.T) {
+	var observedPutBody map[string]any
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		case "/umbraco/management/api/v1/document-type/dt-1":
+			if req.Method == http.MethodPut {
+				if err := json.NewDecoder(req.Body).Decode(&observedPutBody); err != nil {
+					t.Fatalf("decode put: %v", err)
+				}
+				return datatypeJSONResponse(http.StatusOK, `{"updated":true}`), nil
+			}
+			return datatypeJSONResponse(http.StatusOK, `{"id":"dt-1","alias":"partnerPage","name":"Partner Page","properties":[],"containers":[]}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusNotFound, `null`), nil
+		}
+	})
+
+	if _, err := execute(
+		buildRootWithCollections(t, deps),
+		"doctype", "add-property", "dt-1",
+		"--alias", "title", "--name", "Title", "--data-type", "dt-text",
+		"--container", "Content", "--create-container", "--container-type", "tab",
+	); err != nil {
+		t.Fatalf("add-property --create-container failed: %v", err)
+	}
+	containers, _ := observedPutBody["containers"].([]any)
+	if len(containers) != 1 {
+		t.Fatalf("expected the new container in the same PUT, got %+v", observedPutBody["containers"])
+	}
+	created := containers[0].(map[string]any)
+	if created["name"] != "Content" || created["type"] != "Tab" {
+		t.Fatalf("expected normalized container, got %+v", created)
+	}
+	properties, _ := observedPutBody["properties"].([]any)
+	if len(properties) != 1 {
+		t.Fatalf("expected the property in the same PUT, got %+v", observedPutBody["properties"])
+	}
+	property := properties[0].(map[string]any)
+	reference, _ := property["container"].(map[string]any)
+	if reference["id"] != created["id"] {
+		t.Fatalf("expected the property to reference the created container id, got property=%v container=%v", reference, created["id"])
+	}
+}
+
+func TestDoctypeAddPropertyMissingContainerHintsCreateFlag(t *testing.T) {
+	deps := datatypeDeps(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/umbraco/management/api/v1/security/back-office/token":
+			return datatypeJSONResponse(http.StatusOK, `{"access_token":"token-123","expires_in":3600}`), nil
+		default:
+			return datatypeJSONResponse(http.StatusOK, `{"id":"dt-1","alias":"x","name":"X","properties":[],"containers":[]}`), nil
+		}
+	})
+	_, err := execute(buildRootWithCollections(t, deps), "doctype", "add-property", "dt-1", "--alias", "a", "--name", "A", "--data-type", "d", "--container", "Nope")
+	if err == nil || !strings.Contains(err.Error(), "--create-container") {
+		t.Fatalf("expected missing-container hint, got %v", err)
+	}
+	_, err = execute(buildRootWithCollections(t, deps), "doctype", "add-property", "dt-1", "--alias", "a", "--name", "A", "--data-type", "d", "--container", "Nope", "--container-type", "Tab")
+	if err == nil || !strings.Contains(err.Error(), "--container-type only applies") {
+		t.Fatalf("expected container-type guard, got %v", err)
 	}
 }
