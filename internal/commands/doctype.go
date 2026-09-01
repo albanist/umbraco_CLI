@@ -230,11 +230,14 @@ func doctypeAddProperty(deps Dependencies) *cobra.Command {
 	var container string
 	var description string
 	var mandatory bool
+	var createContainer bool
+	var newContainerType string
 	var dryRun bool
 
 	cmd := &cobra.Command{
 		Use:   "add-property <id>",
-		Short: "Append a property to a document type under an existing container alias",
+		Short: "Append a property to a document type, creating its container with it if needed",
+		Long:  "GET /document-type/{id} + PUT /document-type/{id}. The property lands under the --container tab/group. With --create-container the container is created in the same update when it does not exist yet — the two must travel in one request, because the server prunes containers that are saved empty (which is why a bare 'add-container' followed by 'add-property' cannot work).",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for flag, value := range map[string]string{
@@ -259,12 +262,30 @@ func doctypeAddProperty(deps Dependencies) *cobra.Command {
 				return err
 			}
 
-			containerID, ambiguous := findDoctypeContainerID(current, container)
-			if containerID == "" {
-				return fmt.Errorf("doctype %s has no container named %q", args[0], container)
+			if !createContainer && cmd.Flags().Changed("container-type") {
+				return fmt.Errorf("--container-type only applies with --create-container")
 			}
+			containerID, ambiguous := findDoctypeContainerID(current, container)
 			if ambiguous {
 				return fmt.Errorf("doctype %s has multiple containers named %q; rename one or pick a unique name", args[0], container)
+			}
+			var nextContainers []any
+			if containerID == "" {
+				if !createContainer {
+					return fmt.Errorf("doctype %s has no container named %q; pass --create-container to create it together with this property (empty containers cannot be created alone — the server prunes them on save)", args[0], container)
+				}
+				normalizedType := normalizeDoctypeContainerType(newContainerType)
+				if normalizedType == "" {
+					return fmt.Errorf("--container-type must be Tab or Group, got %q", newContainerType)
+				}
+				newID, err := newUUIDv4()
+				if err != nil {
+					return fmt.Errorf("failed to generate container id: %w", err)
+				}
+				created := buildDoctypeContainer(newID, "", container, normalizedType, nextDoctypeContainerSortOrder(current, ""))
+				existing, _ := current["containers"].([]any)
+				nextContainers = append(append(make([]any, 0, len(existing)+1), existing...), created)
+				containerID = newID
 			}
 			if hasDoctypeProperty(current, alias) {
 				return fmt.Errorf("doctype %s already has a property with alias %q", args[0], alias)
@@ -277,9 +298,13 @@ func doctypeAddProperty(deps Dependencies) *cobra.Command {
 			sortOrder := nextDoctypePropertySortOrder(current, containerID)
 			property := buildDoctypeProperty(propertyID, containerID, alias, name, dataType, description, mandatory, sortOrder)
 
-			merged := mergeAliasPayload(current, map[string]any{
-				"properties": []any{property},
-			})
+			patch := map[string]any{"properties": []any{property}}
+			if nextContainers != nil {
+				// Containers have no alias field, so the alias-keyed merge
+				// replaces the whole array with this hand-built slice.
+				patch["containers"] = nextContainers
+			}
+			merged := mergeAliasPayload(current, patch)
 			result, err := deps.Client.Put(
 				ctx,
 				api.JoinPath("/document-type/%s", args[0]),
@@ -299,6 +324,8 @@ func doctypeAddProperty(deps Dependencies) *cobra.Command {
 	cmd.Flags().StringVar(&container, "container", "", "Name of the existing tab/group container that should hold the property (case-insensitive match)")
 	cmd.Flags().StringVar(&description, "description", "", "Optional property description")
 	cmd.Flags().BoolVar(&mandatory, "mandatory", false, "Mark the property as mandatory")
+	cmd.Flags().BoolVar(&createContainer, "create-container", false, "Create the --container together with this property when it does not exist yet")
+	cmd.Flags().StringVar(&newContainerType, "container-type", "Group", "Container type for --create-container: Group or Tab")
 	addDryRunFlag(cmd, &dryRun)
 	return cmd
 }
@@ -380,6 +407,7 @@ func doctypeAddContainer(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-container <id>",
 		Short: "Append a tab or group container to a document type",
+		Long:  "GET /document-type/{id} + PUT /document-type/{id}. Note the server prunes containers that are saved with no properties (verified on 18.1) — this command verifies the container survived the save and errors when it was pruned. To create a container and its first property in one step use 'doctype add-property --create-container'.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for flag, value := range map[string]string{
@@ -448,6 +476,19 @@ func doctypeAddContainer(deps Dependencies) *cobra.Command {
 			)
 			if err != nil {
 				return err
+			}
+			if !dryRun {
+				// The server prunes containers saved with no properties and
+				// still answers success, so trust nothing: verify the
+				// container survived. A failed verification read does not
+				// fail the command (the write itself succeeded); only a
+				// confirmed prune does.
+				after, fetchErr := fetchDoctypeObject(ctx, deps.Client, args[0])
+				if fetchErr == nil {
+					if id, _ := findDoctypeContainerID(after, name); id == "" {
+						return fmt.Errorf("the server accepted the update but pruned the empty container %q — Umbraco discards containers with no properties on save. Create it together with its first property instead: 'doctype add-property %s --container %q --create-container', or send a full payload via 'doctype update'", name, args[0], name)
+					}
+				}
 			}
 			return printMutationResult(cmd, deps, "updated", result, dryRun)
 		},

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fixed the `doctype add-container` → `add-property` workflow, which could never work (agent-reported, reproduced live on 18.1): the server prunes containers saved with no properties while still answering success, so `add-container` reported `updated: true` for a container that silently vanished, and `add-property` then refused to target it. `add-container` now verifies the container survived the save and errors honestly when it was pruned (with the working alternative in the message), and `add-property` gains `--create-container` (+ `--container-type Group|Tab`) to create the container together with its first property in one request — the only shape the server persists
+
 ## v0.4.12 - 2026-08-27
 
 - `deploy status` with an explicit `-o json` now exits quietly on drift (still exit 7): the JSON report already carries the summary, and CI harnesses that merge stdout and stderr were corrupting the JSON with the redundant stderr summary line — the cause of two consecutive field reports of "invalid JSON output". Terminal runs (no `-o json`) keep the human summary line on stderr. Also re-verified against the released 0.4.11 binary, for the record: the drift exit code is the constant 7 (one drifted artifact → exit 7), never the drift count — the reported 7-drifted/exit-7 match was the same coincidence twice
